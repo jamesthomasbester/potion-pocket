@@ -1,0 +1,66 @@
+[
+  {
+    "elapsed": 0.0,
+    "event": "session_start"
+  },
+  {
+    "elapsed": 5.7,
+    "event": "first_sale"
+  },
+  {
+    "elapsed": 6.2,
+    "event": "first_harvest"
+  },
+  {
+    "elapsed": 9.7,
+    "event": "first_brew"
+  },
+  {
+    "elapsed": 21.3,
+    "event": "first_upgrade"
+  },
+  {
+    "elapsed": 21.3,
+    "event": "hire_gardener"
+  },
+  {
+    "elapsed": 52.3,
+    "event": "hire_brewer"
+  },
+  {
+    "elapsed": 83.7,
+    "event": "hire_cashier"
+  },
+  {
+    "elapsed": 101.0,
+    "event": "unlock_recipe"
+  },
+  {
+    "elapsed": 207.2,
+    "event": "unlock_renovation"
+  },
+  {
+    "elapsed": 207.2,
+    "event": "renovation_purchase"
+  },
+  {
+    "elapsed": 207.2,
+    "event": "tutorial_complete"
+  },
+  {
+    "elapsed": 219.1,
+    "event": "unlock_grow"
+  },
+  {
+    "elapsed": 235.4,
+    "event": "unlock_brew"
+  },
+  {
+    "elapsed": 246.2,
+    "event": "unlock_capacity"
+  },
+  {
+    "elapsed": 251.6,
+    "event": "unlock_service"
+  }
+]

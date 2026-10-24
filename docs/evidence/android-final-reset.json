@@ -1,0 +1,41 @@
+{
+  "cancel_preserved_workers": true,
+  "confirmed_reset": {
+    "arrival": 0.0,
+    "brew_progress": 0.0,
+    "coins": 0,
+    "crop": 0,
+    "elapsed": 0.0,
+    "flags": {},
+    "herbs": [
+      0,
+      0
+    ],
+    "muted": false,
+    "offline_notice": {},
+    "owned": {},
+    "plots": [
+      {
+        "crop": 0,
+        "progress": 0.0
+      },
+      {
+        "crop": 0,
+        "progress": 0.0
+      }
+    ],
+    "pot": -1,
+    "queue": 0,
+    "ready": false,
+    "recipe": 0,
+    "service": 0.0,
+    "serving": false,
+    "stock": [
+      1,
+      0
+    ],
+    "timestamp": 1792833631.53678,
+    "tutorial": 0,
+    "version": 1
+  }
+}

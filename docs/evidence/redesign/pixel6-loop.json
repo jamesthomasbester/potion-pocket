@@ -1,0 +1,42 @@
+{
+  "arrival": 1.6,
+  "brew_progress": 0.0,
+  "coins": 8.0,
+  "crop": 0.0,
+  "elapsed": 1210.6,
+  "flags": {
+    "first_brew": true,
+    "first_harvest": true,
+    "first_sale": true
+  },
+  "herbs": [
+    3.0,
+    0.0
+  ],
+  "muted": false,
+  "offline_notice": {},
+  "owned": {},
+  "plots": [
+    {
+      "crop": 0.0,
+      "progress": 6.0
+    },
+    {
+      "crop": 0.0,
+      "progress": 6.0
+    }
+  ],
+  "pot": -1,
+  "queue": 2,
+  "ready": false,
+  "recipe": 0.0,
+  "service": 0.0,
+  "serving": false,
+  "stock": [
+    1.0,
+    0.0
+  ],
+  "timestamp": 1792834840.48952,
+  "tutorial": 3,
+  "version": 1.0
+}

@@ -1,0 +1,79 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 553099330 Realtime: 553099330
+
+** MEMINFO in pid 29796 [org.littlelux.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    90912    90900        8       11    92808   121716    98428    17858
+  Dalvik Heap     2178     2152        0        9     6756   262144     2709   259435
+ Dalvik Other     8712     1724        0        0    16160                           
+        Stack     1120     1120        0        0     1128                           
+       Ashmem       16        0        0        0      900                           
+    Other dev       16        0       16        0      356                           
+     .so mmap    63144     1980    57136        2   119204                           
+    .jar mmap     1138        0       68        0    48288                           
+    .apk mmap      256        0      200        0     1344                           
+    .ttf mmap       38        0        8        0      112                           
+    .dex mmap     6054     6052        0        0     6936                           
+    .oat mmap        7        0        0        0     1864                           
+    .art mmap     7945     7820        0        6    21612                           
+   Other mmap        7        4        0        0     1056                           
+   EGL mtrack    82912    82912        0        0    82912                           
+    GL mtrack    47432    47432        0        0    47432                           
+      Unknown     2693     2636       56        2     3952                           
+        TOTAL   314610   244732    57492       30   452820   383860   101137   277293
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:     9972                          28368
+         Native Heap:    90900                          92808
+                Code:    65564                         191844
+               Stack:     1120                           1128
+            Graphics:   130344                         130344
+       Private Other:     4324
+              System:    12386
+             Unknown:                                    8328
+ 
+           TOTAL PSS:   314610            TOTAL RSS:   452820       TOTAL SWAP PSS:       30
+ 
+ Objects
+               Views:        8         ViewRootImpl:        1
+         AppContexts:        5           Activities:        1
+              Assets:       31        AssetManagers:        0
+       Local Binders:       18        Proxy Binders:       67
+       Parcel memory:        6         Parcel count:       26
+    Death Recipients:        0             WebViews:        0
+ 
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):      390                             35
+ Other (nonmalloced):       86                             64
+ 
+ Shared Bitmaps
+                         Count                       Size(KB)
+                        ------                         ------
+              Mapped:        0                              0
+  (Enable debug.hwui.bitmap_ashmem_long_name sysprop to count unique bitmap allocations)
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+ 
+
+10-24 20:07:13.960 29485 29569 I godot   : LUX_PERF fps=59.3 p95_ms=16.7 process_ms=18.54
+10-24 20:07:43.921 29485 29569 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=18.36
+10-24 20:08:13.883 29485 29569 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=17.74
+10-24 20:09:12.790 29796 29846 I godot   : LUX_PERF fps=59.6 p95_ms=16.7 process_ms=18.09
+10-24 20:09:42.762 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=18.36
+10-24 20:10:12.722 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=17.81
+10-24 20:10:42.724 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=17.85
+10-24 20:11:12.688 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=20.0
+10-24 20:11:42.649 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=17.48
+10-24 20:12:12.612 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=19.23
+10-24 20:12:42.605 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=18.61
+10-24 20:13:12.598 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=17.26
+10-24 20:13:42.557 29796 29846 I godot   : LUX_PERF fps=60.0 p95_ms=16.7 process_ms=19.43

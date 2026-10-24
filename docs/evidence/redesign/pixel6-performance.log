@@ -1,0 +1,7 @@
+--------- beginning of main
+10-24 20:48:35.570 10601 10649 I godot   : LUX_PERF fps=43.3 p95_ms=30.0 process_ms=43.15
+10-24 20:49:05.567 10601 10649 I godot   : LUX_PERF fps=47.4 p95_ms=29.0 process_ms=42.09
+10-24 20:49:12.259 11049 11085 I godot   : Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+10-24 20:49:12.326 11049 11085 I godot   : OpenGL API OpenGL ES 3.2 v1.r54p3-01eac0.8acd90adf601ed5e7c6df1066c9b17c1 - Compatibility - Using Device: ARM - Mali-G78
+10-24 20:49:12.338 11049 11085 I godot   : 
+10-24 20:49:43.162 11049 11085 I godot   : LUX_PERF fps=58.4 p95_ms=19.0 process_ms=33.06

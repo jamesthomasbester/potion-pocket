@@ -1,0 +1,165 @@
+{
+  "before": {
+    "arrival": 0.8,
+    "brew_progress": 1.0,
+    "coins": 800,
+    "crop": 1,
+    "elapsed": 393.800000000021,
+    "flags": {
+      "first_brew": true,
+      "first_harvest": true,
+      "first_sale": true,
+      "first_upgrade": true,
+      "tutorial_complete": true
+    },
+    "herbs": [
+      23,
+      24
+    ],
+    "muted": false,
+    "offline_notice": {},
+    "owned": {
+      "brew": true,
+      "brewer": true,
+      "capacity": true,
+      "cashier": true,
+      "gardener": true,
+      "grow": true,
+      "recipe": true,
+      "renovation": true,
+      "service": true
+    },
+    "plots": [
+      {
+        "crop": 1,
+        "progress": 0.9
+      },
+      {
+        "crop": 1,
+        "progress": 5.33333333333333
+      }
+    ],
+    "pot": 1,
+    "queue": 0,
+    "ready": false,
+    "recipe": 1,
+    "service": 0.0,
+    "serving": false,
+    "stock": [
+      0,
+      4
+    ],
+    "timestamp": 1792833316.06931,
+    "tutorial": 8,
+    "version": 1
+  },
+  "paused": {
+    "arrival": 2.5,
+    "brew_progress": 0.0,
+    "coins": 800,
+    "crop": 1,
+    "elapsed": 395.500000000021,
+    "flags": {
+      "first_brew": true,
+      "first_harvest": true,
+      "first_sale": true,
+      "first_upgrade": true,
+      "tutorial_complete": true
+    },
+    "herbs": [
+      23,
+      23
+    ],
+    "muted": true,
+    "offline_notice": {},
+    "owned": {
+      "brew": true,
+      "brewer": true,
+      "capacity": true,
+      "cashier": true,
+      "gardener": true,
+      "grow": true,
+      "recipe": true,
+      "renovation": true,
+      "service": true
+    },
+    "plots": [
+      {
+        "crop": 1,
+        "progress": 2.6
+      },
+      {
+        "crop": 1,
+        "progress": 5.33333333333333
+      }
+    ],
+    "pot": 1,
+    "queue": 0,
+    "ready": false,
+    "recipe": 1,
+    "service": 0.0,
+    "serving": false,
+    "stock": [
+      0,
+      5
+    ],
+    "timestamp": 1792833317.86124,
+    "tutorial": 8,
+    "version": 1
+  },
+  "after": {
+    "arrival": 1.1,
+    "brew_progress": 0.1,
+    "coins": 880.0,
+    "crop": 1.0,
+    "elapsed": 409.100000000024,
+    "flags": {
+      "first_brew": true,
+      "first_harvest": true,
+      "first_sale": true,
+      "first_upgrade": true,
+      "tutorial_complete": true
+    },
+    "herbs": [
+      23.0,
+      24.0
+    ],
+    "muted": true,
+    "offline_notice": {},
+    "owned": {
+      "brew": true,
+      "brewer": true,
+      "capacity": true,
+      "cashier": true,
+      "gardener": true,
+      "grow": true,
+      "recipe": true,
+      "renovation": true,
+      "service": true
+    },
+    "plots": [
+      {
+        "crop": 1.0,
+        "progress": 0.0
+      },
+      {
+        "crop": 1.0,
+        "progress": 5.33333333333333
+      }
+    ],
+    "pot": 1,
+    "queue": 0.0,
+    "ready": false,
+    "recipe": 1.0,
+    "service": 0.0,
+    "serving": false,
+    "stock": [
+      0.0,
+      5.0
+    ],
+    "timestamp": 1792833331.53214,
+    "tutorial": 8,
+    "version": 1.0
+  },
+  "checks": "mute persisted; background+force-stop+12s+relaunch; workers/tutorial/selections retained; offline coins nonnegative"
+}

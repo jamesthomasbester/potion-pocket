@@ -1,0 +1,240 @@
+extends Control
+var model
+var garden := false
+var clock := 0.0
+var pulse := 0.0
+var effect := ""
+var customers: Array = []
+var departures: Array = []
+var next_customer := 0
+const INK = Color("243e46")
+const CREAM = Color("fff4dc")
+const TEAL = Color("285958")
+const MINT = Color("72c9a0")
+const LILAC = Color("b5a0ed")
+const PEACH = Color("f6ac78")
+var font = ThemeDB.fallback_font
+
+func _process(dt):
+	clock += dt
+	pulse = maxf(0,pulse-dt)
+	if model != null:
+		while customers.size() < int(model.s.queue):
+			customers.append({"p":Vector2(495,345),"variant":next_customer%3})
+			next_customer += 1
+		while customers.size() > int(model.s.queue): leave_customer()
+		for i in range(customers.size()):
+			customers[i].p = customers[i].p.move_toward(Vector2(281-i*47,336-i*20),dt*90)
+		for c in departures:
+			c.p = c.p.move_toward(Vector2(540,365),dt*110)
+		departures = departures.filter(func(c): return c.p.x < 530)
+	queue_redraw()
+
+func leave_customer():
+	if not customers.is_empty(): departures.append(customers.pop_front())
+
+func poly(points: Array, color: Color):
+	draw_colored_polygon(PackedVector2Array(points),color)
+	draw_polyline(PackedVector2Array(points+[points[0]]),INK,2,true)
+
+func ellipse(p: Vector2, radius: Vector2, color: Color):
+	draw_set_transform(p,0,radius)
+	draw_circle(Vector2.ZERO,1,color)
+	draw_set_transform(Vector2.ZERO)
+
+func box(pos: Vector2, sz: Vector2, color: Color, radius: int = 10):
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left=radius
+	style.corner_radius_top_right=radius
+	style.corner_radius_bottom_left=radius
+	style.corner_radius_bottom_right=radius
+	style.border_color=INK
+	style.set_border_width_all(2)
+	draw_style_box(style,Rect2(pos,sz))
+
+func text(p: Vector2, value: String, color: Color = INK, font_size: int = 17):
+	draw_string(font,p,value,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size,color)
+
+func bottle(p: Vector2, kind: int, scale_value: float = 1.0):
+	var c := MINT if kind == 0 else LILAC
+	if kind == 0:
+		ellipse(p,Vector2(9,11)*scale_value,INK)
+		ellipse(p-Vector2(0,1),Vector2(7,9)*scale_value,c)
+	else:
+		poly([p+Vector2(0,-13)*scale_value,p+Vector2(10,0)*scale_value,p+Vector2(0,11)*scale_value,p+Vector2(-10,0)*scale_value],c)
+	draw_rect(Rect2(p+Vector2(-4,-17)*scale_value,Vector2(8,7)*scale_value),CREAM)
+	draw_line(p+Vector2(-4,-17)*scale_value,p+Vector2(4,-17)*scale_value,INK,3)
+	draw_circle(p+Vector2(-3,-3)*scale_value,2*scale_value,Color.WHITE)
+
+func herb(p: Vector2, kind: int, stage: float):
+	var h := 10+24*stage
+	draw_line(p,p-Vector2(0,h),TEAL,3,true)
+	for i in range(2 if stage < 0.4 else 4):
+		var side := -1 if i%2 == 0 else 1
+		var tip := p+Vector2(side*12,-8-i*5)
+		poly([p-Vector2(0,5+i*5),tip-Vector2(0,6),tip+Vector2(side*4,0)],MINT if kind == 0 else Color("7ba7a0"))
+	if kind == 1 and stage > 0.5:
+		var centre := p-Vector2(0,h+4)
+		for i in range(5):
+			draw_circle(centre+Vector2.from_angle(i*TAU/5)*7,5,LILAC)
+		draw_circle(centre,4,CREAM)
+
+func person(p: Vector2, color: Color, role: String = "", variant: int = 0, walking: bool = false):
+	ellipse(p+Vector2(0,3),Vector2(19,7),Color(0.12,0.24,0.23,0.16))
+	var bob := sin(clock*6+variant)*1.5 if walking else sin(clock*2+variant)*0.7
+	p.y += bob
+	var skin := Color("e5af83") if variant%2 == 0 else Color("ad7658")
+	var stride := sin(clock*8)*3 if walking else 0.0
+	box(p+Vector2(-12,-9+stride),Vector2(10,10),CREAM,3)
+	box(p+Vector2(3,-9-stride),Vector2(10,10),CREAM,3)
+	box(p+Vector2(-14,-38),Vector2(28,31),color,9)
+	draw_rect(Rect2(p+Vector2(-8,-29),Vector2(16,17)),CREAM if role != "" else color.lightened(0.2))
+	draw_circle(p+Vector2(-16,-24),5,skin)
+	draw_circle(p+Vector2(16,-24),5,skin)
+	draw_circle(p+Vector2(0,-48),15,INK)
+	draw_circle(p+Vector2(0,-47),13,skin)
+	ellipse(p+Vector2(0,-58),Vector2(14,6),INK if variant%2 else Color("744e47"))
+	draw_circle(p+Vector2(-5,-48),1.6,INK)
+	draw_circle(p+Vector2(5,-48),1.6,INK)
+	draw_arc(p+Vector2(0,-44),4,0.2,2.9,12,INK,1.4,true)
+	if role == "garden":
+		ellipse(p+Vector2(0,-61),Vector2(22,5),Color("e4cc8b"))
+		box(p+Vector2(-12,-72),Vector2(24,12),Color("e4cc8b"),5)
+		herb(p+Vector2(11,-66),0,0.0)
+	if role == "brew":
+		poly([p+Vector2(-18,-60),p+Vector2(3,-84),p+Vector2(17,-60)],LILAC)
+		draw_circle(p+Vector2(2,-68),3,CREAM)
+	if role == "cash":
+		box(p+Vector2(-15,-65),Vector2(30,9),PEACH,4)
+		draw_line(p+Vector2(5,-39),p+Vector2(9,-32),INK,2)
+
+func iso(x: float,y: float) -> Vector2:
+	return Vector2(270+(x-y)*47,130+(x+y)*23.5)
+
+func furniture(p: Vector2, width: float, depth: float, height: float, c: Color):
+	var a:=p+Vector2(-width/2,0)
+	var b:=p+Vector2(0,depth/2)
+	var d:=p+Vector2(0,-depth/2)
+	var e:=p+Vector2(width/2,0)
+	poly([a,b,b+Vector2(0,height),a+Vector2(0,height)],c.darkened(0.14))
+	poly([b,e,e+Vector2(0,height),b+Vector2(0,height)],c.darkened(0.3))
+	poly([a,d,e,b],c)
+
+func cauldron(p: Vector2):
+	var upgraded: bool = model.owned("brew")
+	ellipse(p+Vector2(0,10),Vector2(47,17),Color(0.1,0.2,0.2,0.13))
+	for x in [-25,25]: box(p+Vector2(x-5,-2),Vector2(10,18),INK,3)
+	ellipse(p-Vector2(0,19),Vector2(42,35),INK)
+	ellipse(p-Vector2(0,22),Vector2(38,29),PEACH if upgraded else TEAL)
+	ellipse(p-Vector2(0,42),Vector2(41,18),INK)
+	ellipse(p-Vector2(0,43),Vector2(35,13),LILAC if (model.s.pot if model.s.pot != -1 else model.s.recipe) == 1 else MINT)
+	draw_arc(p+Vector2(-40,-25),9,1.1,5.1,16,INK,5,true)
+	draw_arc(p+Vector2(40,-25),9,-2,2,16,INK,5,true)
+	if upgraded:
+		draw_circle(p+Vector2(0,-18),8,CREAM)
+		draw_line(p+Vector2(0,-18),p+Vector2(4,-22),INK,2)
+	if model.s.pot != -1:
+		var fill:=clampf(model.s.brew_progress/model.brew_time(int(model.s.pot)),0.0,1.0)
+		box(p+Vector2(48,-31),Vector2(17,26),CREAM,6)
+		draw_rect(Rect2(p+Vector2(51,-8-20*fill),Vector2(11,20*fill)),MINT if model.s.pot==0 else LILAC)
+		draw_line(p+Vector2(51,-33),p+Vector2(62,-33),INK,4)
+		for i in range(5):
+			var phase := fmod(clock*0.7+i*0.2,1.0)
+			draw_circle(p+Vector2(sin(i*7.0+clock)*25,-42-phase*40),3+phase*3,Color(0.9,1,0.8,1-phase))
+	if model.s.ready: bottle(p+Vector2(0,-83),int(model.s.pot),1.3)
+
+func _draw():
+	if model == null: return
+	# A centered 540x405 art canvas, independent of UI and screen aspect.
+	draw_set_transform(Vector2.ZERO)
+	var renovated: bool = model.owned("renovation")
+	ellipse(Vector2(270,340),Vector2(236,37),Color(0.14,0.3,0.29,0.09))
+	# Cutaway walls and doorway frame share the floor's 2:1 basis.
+	poly([iso(0,0)-Vector2(0,100),iso(5,0)-Vector2(0,100),iso(5,0),iso(0,0)],Color("d5e4d9") if renovated else Color("e5d9bd"))
+	poly([iso(0,0)-Vector2(0,100),iso(0,5)-Vector2(0,100),iso(0,5),iso(0,0)],Color("f9ebce") if renovated else Color("eaddc3"))
+	for x in range(5):
+		for y in range(5):
+			var c := Color("e9c99b") if (x+y)%2 == 0 else Color("dfbb8c")
+			if renovated: c = Color("d8e9d9") if (x+y)%2 == 0 else Color("fff3d7")
+			if garden: c = Color("b9d7ae") if (x+y)%2 == 0 else Color("c7ddb7")
+			poly([iso(x,y),iso(x+1,y),iso(x+1,y+1),iso(x,y+1)],c)
+	# Tall turquoise doorway: shared connection between the two views.
+	poly([Vector2(72,143),Vector2(113,122),Vector2(113,198),Vector2(72,220)],TEAL)
+	poly([Vector2(78,145),Vector2(105,132),Vector2(105,193),Vector2(78,207)],Color("8fc4b5"))
+	draw_circle(Vector2(99,173),3,CREAM)
+	box(Vector2(164,28),Vector2(195,43),Color("d9b95f") if renovated else TEAL,12)
+	text(Vector2(185,57),"LITTLE LUX",TEAL if renovated else CREAM,25)
+	text(Vector2(183,91),"ROOFTOP GARDEN" if garden else "NEIGHBOURHOOD POTIONS",TEAL,12)
+	# Round window and hanging lamp add a restrained contemporary shop identity.
+	ellipse(Vector2(395,135),Vector2(23,30),INK)
+	ellipse(Vector2(395,134),Vector2(19,26),Color("9acdcc"))
+	draw_line(Vector2(395,109),Vector2(395,159),CREAM,3,true)
+	draw_line(Vector2(377,133),Vector2(413,133),CREAM,3,true)
+	draw_line(Vector2(149,92),Vector2(149,113),INK,2)
+	box(Vector2(139,112),Vector2(20,24),Color("f2cd70"),6)
+	if not renovated and not garden:
+		draw_line(Vector2(150,111),Vector2(155,126),Color("a58f77"),2)
+		draw_line(Vector2(155,126),Vector2(149,133),Color("a58f77"),2)
+	if garden:
+		for i in range(2):
+			var p:=Vector2(206+i*106,206+i*48)
+			furniture(p,150,77,15,Color("a77559"))
+			var crop: Dictionary = model.s.plots[i]
+			var ratio: float = crop.progress/model.grow_time(int(crop.crop))
+			for j in range(3): herb(p+Vector2((j-1)*29,(j-1)*9),int(crop.crop),ratio)
+			box(p+Vector2(-50,40),Vector2(100,9),CREAM,4)
+			draw_rect(Rect2(p+Vector2(-47,43),Vector2(94*ratio,3)),MINT)
+			text(p+Vector2(-48,70),"Harvest!" if ratio>=1 else "%ds to grow" % ceili(model.grow_time(int(crop.crop))-crop.progress),INK,15)
+		furniture(Vector2(374,157),83,40,32,TEAL)
+		herb(Vector2(375,151),1,1.0)
+		person(Vector2(133+sin(clock)*8,270),MINT,"garden" if model.owned("gardener") else "",0,model.owned("gardener"))
+		box(Vector2(60,332),Vector2(88,29),CREAM,6)
+		text(Vector2(70,352),"← SHOP",TEAL,15)
+	else:
+		# Back shelf holds the actual inventory.
+		furniture(Vector2(348,171),152,63,49,TEAL)
+		# Open shelf front with cream rails; inventory sits on its top.
+		poly([Vector2(281,183),Vector2(340,208),Vector2(340,237),Vector2(281,212)],Color("183d40"))
+		draw_line(Vector2(280,197),Vector2(341,223),Color("d7c395"),4,true)
+		for j in range(3): draw_line(Vector2(290+j*12,186+j*5),Vector2(290+j*12,199+j*5),[PEACH,LILAC,MINT][j],6,true)
+		for i in range(mini(model.stock_count(),12)):
+			bottle(Vector2(293+(i%6)*19,147+(i%6)*8-(i/6)*24),1 if i < model.s.stock[1] else 0,0.8)
+		cauldron(Vector2(182,225))
+		var brewer_pos:=Vector2(225,181)
+		if model.owned("brewer"):
+			var carry:=maxf(0,sin(clock*0.8))
+			brewer_pos=brewer_pos.lerp(Vector2(285,207),carry)
+		if model.owned("brewer"): person(brewer_pos,LILAC,"brew",0,true)
+		var owner_pos:=Vector2(210,281)
+		if model.s.serving and not model.owned("cashier"): owner_pos=Vector2(342,251)
+		elif model.s.pot != -1 and not model.owned("brewer"): owner_pos=Vector2(225,181)
+		person(owner_pos,TEAL,"owner",0)
+		if model.owned("gardener"):
+			person(Vector2(103+sin(clock*0.8)*20,239+sin(clock*0.8)*10),MINT,"garden",0,true)
+		if model.owned("cashier"): person(Vector2(342,251),PEACH,"cash",1)
+		furniture(Vector2(343,275),141,55,34,PEACH if renovated else Color("bc926f"))
+		box(Vector2(348,243),Vector2(22,21),INK,4)
+		draw_rect(Rect2(352,247,14,10),MINT)
+		for c in customers + departures:
+			person(c.p,[LILAC,Color("e8997e"),Color("88b7c5")][int(c.variant)],"",int(c.variant)+1,true)
+		if renovated:
+			furniture(Vector2(420,232),37,22,16,CREAM)
+			herb(Vector2(420,225),1,1.0)
+			for i in range(5): draw_circle(Vector2(290+i*39,49+i*19),4,Color("ffe5a0"))
+		text(Vector2(52,332),"GARDEN",TEAL,13)
+		text(Vector2(52,350),"↖ herbs",TEAL,13)
+	# Visible transport arcs: harvested sprig or stocked bottle travels between stations.
+	if pulse > 0:
+		var t:=1.0-pulse/1.2
+		var start:=Vector2(102,219) if effect == "harvest" else Vector2(182,185)
+		var target:=Vector2(182,185) if effect == "harvest" else Vector2(345,151)
+		var p:=start.lerp(target,t)-Vector2(0,sin(t*PI)*42)
+		if effect == "harvest": herb(p,0,0.6)
+		elif effect == "stock": bottle(p,model.s.recipe)
+		elif effect in ["sale","dream_sale"]:
+			text(Vector2(252,274-t*36),"+%d" % model.price(1 if effect == "dream_sale" else 0),TEAL,26)
+			if effect == "dream_sale":
+				for i in range(5): text(Vector2(250+i*18,300-sin(t*PI)*55-i*9),"✦",LILAC,22)
+		elif effect == "upgrade":
+			for i in range(8): draw_circle(Vector2(270,210)+Vector2.from_angle(i*TAU/8)*t*150,4,PEACH)

@@ -1,0 +1,30 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+WARNING: Failed to create wd.xic as the input method or its xim server may not have started yet.
+     at: _create_xic (platform/linuxbsd/x11/display_server_x11.cpp:6347)
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.2 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 20.1.2, 256 bits)
+
+PASS touch control within screen, >=48px: Brew potion
+PASS touch control within screen, >=48px: Serve • 0 waiting
+PASS touch control within screen, >=48px: ✓ Energy • 8 coins
+PASS touch control within screen, >=48px: Unlock in Improve
+PASS touch control within screen, >=48px: ▣  Shop
+PASS touch control within screen, >=48px: ✿  Garden
+PASS touch tab switch preserves entire economy state
+PASS touch harvest works
+PASS touch brew works
+PASS touch stock works
+PASS touch sale completes valid loop
+PASS switching crop recovers from full old herb inventory
+PASS background notification saved recoverable state
+PASS background save retains inventory and tutorial flags
+PASS reset dialog does not reset before confirmation
+PASS cancel reset keeps progress
+PASS confirmed reset clears only demo state
+PASS reset synchronizes sound and saved preference
+PASS context card purchases real cauldron upgrade
+PASS card upgrade changes actual brew duration
+PASS coin header displays integer balance
+PASS scene stays clipped inside responsive scene area
+UI RESULT 22 checks / 0 failures

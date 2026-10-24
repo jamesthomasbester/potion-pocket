@@ -1,0 +1,74 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS two beds yield four herbs
+PASS rapid harvest cannot duplicate
+PASS energy consumes one peppermint
+PASS rapid brew cannot consume twice
+PASS energy produces one bottle
+PASS rapid stock cannot duplicate
+PASS customer can start checkout
+PASS rapid checkout cannot duplicate
+PASS valid sale deducts bottle and grants price
+PASS purchase charges once: gardener
+PASS duplicate purchase rejected: gardener
+PASS purchase charges once: brewer
+PASS duplicate purchase rejected: brewer
+PASS purchase charges once: cashier
+PASS duplicate purchase rejected: cashier
+PASS purchase charges once: recipe
+PASS duplicate purchase rejected: recipe
+PASS purchase charges once: grow
+PASS duplicate purchase rejected: grow
+PASS purchase charges once: brew
+PASS duplicate purchase rejected: brew
+PASS purchase charges once: service
+PASS duplicate purchase rejected: service
+PASS purchase charges once: capacity
+PASS duplicate purchase rejected: capacity
+PASS purchase charges once: renovation
+PASS duplicate purchase rejected: renovation
+PASS displayed upgrade effects
+PASS dream consumes moonflower only
+PASS dream produces correct bottle
+PASS full shelf blocks production without consuming
+PASS full shelf recovers when a sale frees space
+PASS unavailable herb safe
+PASS three helpers grow brew stock sell without manual work
+PASS automation respects inventory limits
+PASS online/offline same rules: coins
+PASS online/offline same rules: herbs
+PASS online/offline same rules: stock
+PASS online/offline same rules: plots
+PASS online/offline same rules: pot
+PASS online/offline same rules: brew_progress
+PASS online/offline same rules: ready
+PASS online/offline same rules: queue
+PASS online/offline same rules: arrival
+PASS online/offline same rules: service
+PASS online/offline same rules: serving
+PASS online/offline same rules: tutorial
+PASS same interval cannot credit twice
+PASS negative clock preserves high-water mark
+PASS clock recovery cannot replay elapsed time
+PASS two-hour cap and no unattended manual sales
+PASS offline no gardener means no harvesting
+PASS atomic save succeeds
+PASS load succeeds
+PASS all inventory progress tutorial workers selections round trip
+PASS backup rotation succeeds
+PASS corrupt main recovers backup
+PASS negative inventory rejected
+PASS invalid crop save rejected
+PASS gardener only removes harvesting work
+PASS brewer only consumes brews and stocks
+PASS cashier only sells valid inventory
+PASS recipe switch recovers with saturated old ingredient bin
+PASS completed potion waits intact at full shelf
+PASS waiting completed potion stocks after capacity clears
+PASS switching recipe preserves in-flight potion identity
+PASS fully automated offline production obeys two-hour cap
+PASS offline credited once across repeated process loads
+PASS future save version never silently overwritten
+PASS write blocked after future-schema refusal
+RESULT 70 checks / 0 failures
+

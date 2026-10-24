@@ -1,0 +1,69 @@
+{
+  "wall_seconds": 300.7056711539626,
+  "milestones": {
+    "garden": 7.722491526044905,
+    "gardener": 23.1,
+    "brewer": 51.1,
+    "cashier": 82.0,
+    "recipe": 99.5,
+    "renovation": 205.8,
+    "grow": 217.4,
+    "brew": 233.7,
+    "capacity": 244.4,
+    "service": 250.0
+  },
+  "state": {
+    "arrival": 1.3,
+    "brew_progress": 0.0,
+    "coins": 288,
+    "crop": 1,
+    "elapsed": 298.299999999999,
+    "flags": {
+      "first_brew": true,
+      "first_harvest": true,
+      "first_sale": true,
+      "first_upgrade": true,
+      "tutorial_complete": true
+    },
+    "herbs": [
+      23,
+      23
+    ],
+    "muted": false,
+    "offline_notice": {},
+    "owned": {
+      "brew": true,
+      "brewer": true,
+      "capacity": true,
+      "cashier": true,
+      "gardener": true,
+      "grow": true,
+      "recipe": true,
+      "renovation": true,
+      "service": true
+    },
+    "plots": [
+      {
+        "crop": 1,
+        "progress": 2.6
+      },
+      {
+        "crop": 1,
+        "progress": 5.33333333333333
+      }
+    ],
+    "pot": 1,
+    "queue": 0,
+    "ready": false,
+    "recipe": 1,
+    "service": 0.0,
+    "serving": false,
+    "stock": [
+      0,
+      1
+    ],
+    "timestamp": 1792833220.7278,
+    "tutorial": 8,
+    "version": 1
+  }
+}

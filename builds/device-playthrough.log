@@ -1,0 +1,19 @@
+Physical size: 1080x2400
+
+events.jsonl
+little_lux.json
+little_lux.json.bak
+shader_cache
+
+{'arrival': 1.5, 'brew_progress': 0.0, 'coins': 0, 'crop': 0, 'elapsed': 115.499999999998, 'flags': {}, 'herbs': [0, 0], 'muted': False, 'offline_notice': {}, 'owned': {}, 'plots': [{'crop': 0, 'progress': 6.0}, {'crop': 0, 'progress': 6.0}], 'pot': -1, 'queue': 3, 'ready': False, 'recipe': 0, 'service': 0.0, 'serving': False, 'stock': [1, 0], 'timestamp': 1792832919.3243, 'tutorial': 0, 'version': 1}
+DEVICE purchase gardener 23.1
+DEVICE purchase brewer 51.1
+DEVICE purchase cashier 82.0
+DEVICE purchase recipe 99.5
+DEVICE purchase renovation 205.8
+DEVICE purchase grow 217.4
+DEVICE purchase brew 233.7
+DEVICE purchase capacity 244.4
+DEVICE purchase service 250.0
+DEVICE END {"arrival": 1.3, "brew_progress": 0.0, "coins": 288, "crop": 1, "elapsed": 298.299999999999, "flags": {"first_brew": true, "first_harvest": true, "first_sale": true, "first_upgrade": true, "tutorial_complete": true}, "herbs": [23, 23], "muted": false, "offline_notice": {}, "owned": {"brew": true, "brewer": true, "capacity": true, "cashier": true, "gardener": true, "grow": true, "recipe": true, "renovation": true, "service": true}, "plots": [{"crop": 1, "progress": 2.6}, {"crop": 1, "progress": 5.33333333333333}], "pot": 1, "queue": 0, "ready": false, "recipe": 1, "service": 0.0, "serving": false, "stock": [0, 1], "timestamp": 1792833220.7278, "tutorial": 8, "version": 1}
+/sdcard/little-lux-intro.mp4: 1 file pulled, 0 skipped. 36.6 MB/s (43096786 bytes in 1.122s)

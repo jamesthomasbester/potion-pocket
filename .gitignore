@@ -1,0 +1,5 @@
+.godot/
+*.tmp
+builds/*.apk
+builds/*.idsig
+builds/*.zip
