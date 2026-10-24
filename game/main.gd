@@ -577,8 +577,8 @@ func refresh():
 	upgrade_button.text="Improve" if improved else "Upgrade\n%d" % upgrade_cost
 	upgrade_button.icon=null if improved else coin_tex
 	upgrade_button.disabled=not improved and s.coins<upgrade_cost
-	leaf_count.text=str(s.herbs[0])
-	flower_count.text=str(s.herbs[1])
+	leaf_count.text=str(int(s.herbs[0]))
+	flower_count.text=str(int(s.herbs[1]))
 	flower_chip.visible=model.owned("recipe") or s.herbs[1]>0
 	bottle_count.text="%d / %d" % [model.stock_count(),model.capacity()]
 	status.text=model.status()
