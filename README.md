@@ -34,7 +34,9 @@ See `ART_DIRECTION.md`, `docs/ECONOMY.md`, `docs/VALIDATION.md`, `docs/HANDOFF.m
 The approved mockup drives the new warm timber, cream tiles, purple cauldron, rounded characters, cream/navy header, lavender goal/tabs and green upgrade card. Native manual controls collapse after hiring their worker. Gear opens management and recipe choices; tapping a hire/upgrade objective opens its management panel. Prices and timing reflect actual game data. See `docs/REDESIGN.md` and `docs/evidence/redesign/` for current screenshots and validation. Earlier videos/screenshots below document the previous foundation.
 
 ## Polish pass
-Raised, squishy buttons; a counting coin balance; a goal banner with a progress bar toward its coin target; inventory chips; icon tabs; Team/Improve as sprite cards. The scene answers each action: leaf puffs on harvest, cauldron splash and squash on brew, an arcing bottle and shelf sparkle on stock, coin bursts with floating +N on sales, a sparkle burst on purchases and glints on anything ready to collect. During onboarding the next control to tap glows softly. The APK in `builds/` predates this pass; rebuild with `python3 tools/build_android.py`.
+Raised, squishy buttons; a counting coin balance; a goal banner with a progress bar toward its coin target; inventory chips; icon tabs; Team/Improve as sprite cards. The scene answers each action: leaf puffs on harvest, cauldron splash and squash on brew, an arcing bottle and shelf sparkle on stock, coin bursts with floating +N on sales, a sparkle burst on purchases and glints on anything ready to collect. During onboarding the next control to tap glows softly.
+
+The shop room, its furniture and customer paths sit on one oblique grid (`U`/`V` in `game/room.gd`) matched to the sprites. The garden tab is an outdoor scene: house front, picket fence, stone path, two raised beds of vector peppermint/moonflower, and a locked third plot. Feature roadmap: `docs/FEATURE_PROPOSALS.md`. The APK in `builds/` predates this pass; rebuild with `python3 tools/build_android.py`.
 
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.

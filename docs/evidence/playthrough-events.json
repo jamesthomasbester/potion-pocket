@@ -4,63 +4,63 @@
     "event": "session_start"
   },
   {
-    "elapsed": 5.5,
+    "elapsed": 5.0,
     "event": "first_sale"
   },
   {
-    "elapsed": 7.0,
+    "elapsed": 6.4,
     "event": "first_harvest"
   },
   {
-    "elapsed": 10.5,
+    "elapsed": 9.7,
     "event": "first_brew"
   },
   {
-    "elapsed": 22.0,
+    "elapsed": 20.8,
     "event": "first_upgrade"
   },
   {
-    "elapsed": 22.0,
+    "elapsed": 20.8,
     "event": "hire_gardener"
   },
   {
-    "elapsed": 52.4,
+    "elapsed": 50.5,
     "event": "hire_brewer"
   },
   {
-    "elapsed": 84.5,
+    "elapsed": 81.9,
     "event": "hire_cashier"
   },
   {
-    "elapsed": 101.5,
+    "elapsed": 99.9,
     "event": "unlock_recipe"
   },
   {
-    "elapsed": 208.0,
+    "elapsed": 206.2,
     "event": "unlock_renovation"
   },
   {
-    "elapsed": 208.0,
+    "elapsed": 206.2,
     "event": "renovation_purchase"
   },
   {
-    "elapsed": 208.0,
+    "elapsed": 206.2,
     "event": "tutorial_complete"
   },
   {
-    "elapsed": 219.8,
+    "elapsed": 218.1,
     "event": "unlock_grow"
   },
   {
-    "elapsed": 235.8,
+    "elapsed": 233.8,
     "event": "unlock_brew"
   },
   {
-    "elapsed": 246.4,
+    "elapsed": 245.3,
     "event": "unlock_capacity"
   },
   {
-    "elapsed": 251.9,
+    "elapsed": 250.6,
     "event": "unlock_service"
   }
 ]

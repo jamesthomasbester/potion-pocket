@@ -362,12 +362,12 @@ func build_ui():
 	tab_bg.add_child(tabs)
 	root_box.add_child(tab_bg)
 	shop_tab=button("Shop",func(): switch_tab("shop"),74)
-	shop_tab.icon=load("res://game/art/cauldron.png")
+	shop_tab.icon=load("res://game/art/tab_shop.svg")
 	garden_tab=button("Garden",func(): switch_tab("garden"),74)
-	garden_tab.icon=load("res://game/art/plant.png")
+	garden_tab.icon=load("res://game/art/tab_garden.svg")
 	for b in [shop_tab,garden_tab]:
 		b.add_theme_font_size_override("font_size",24)
-		b.add_theme_constant_override("icon_max_width",36)
+		b.add_theme_constant_override("icon_max_width",34)
 		b.add_theme_constant_override("h_separation",10)
 		tabs.add_child(b)
 	upgrade_layer=PanelContainer.new()
@@ -452,7 +452,6 @@ func switch_tab(value: String):
 	tab=value
 	room.garden=tab=="garden"
 	room.queue_redraw()
-	card_icon.texture=room.textures["bed" if tab=="garden" else "cauldron"]
 	refresh()
 
 func select(value: int):
@@ -554,7 +553,7 @@ func tutorial_target() -> Button:
 
 func refresh():
 	if not is_instance_valid(header): return
-	header.text="Potion Shop"
+	header.text="Herb Garden" if tab=="garden" else "Potion Shop"
 	if model.s.coins<shown_coins or not is_processing(): shown_coins=model.s.coins
 	coins_label.text=str(int(shown_coins))
 	var goal:String=model.objective()
@@ -570,7 +569,9 @@ func refresh():
 	var s: Dictionary=model.s
 	var upgrade_id="grow" if tab=="garden" else "brew"
 	var improved=model.owned(upgrade_id)
-	card_title.text=("Garden" if tab=="garden" else "Cauldron")+" · Lv. "+("2" if improved else "1")
+	var crop_name:String=model.cfg.crops[int(s.crop)].name
+	card_title.text=(crop_name if tab=="garden" else "Cauldron")+" · Lv. "+("2" if improved else "1")
+	card_icon.texture=room.textures[("flowers" if int(s.crop)==1 else "leaves") if tab=="garden" else "cauldron"]
 	var duration=model.grow_time(s.crop) if tab=="garden" else model.brew_time(s.recipe)
 	card_detail.text=("Grow" if tab=="garden" else "Brew")+" time %.1fs" % duration+("" if improved else " → %.1fs" % (duration/1.5))
 	var upgrade_cost=48 if tab=="garden" else 64
@@ -717,6 +718,8 @@ func tap(b: Button):
 	await get_tree().process_frame
 
 func screenshot(name: String):
+	# Let tab fades finish so evidence shows the settled scene.
+	await get_tree().create_timer(0.3).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://docs/evidence/redesign/"+("tall-" if "--tall" in OS.get_cmdline_user_args() else "")+name+".png")
 
