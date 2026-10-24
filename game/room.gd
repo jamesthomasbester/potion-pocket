@@ -9,6 +9,10 @@ var customers: Array = []
 var departures: Array = []
 var textures := {}
 var floor_lines: Array = []
+var particles: Array = []
+var floaters: Array = []
+var bounce := {}
+var coin_tex: Texture2D
 const INK = Color("191b43")
 var font = ThemeDB.fallback_font
 
@@ -23,6 +27,7 @@ func _ready():
 	for name in ["cauldron","shelf","counter","leaves","flowers","bed","bush","plant","gate","owner","brewer","cashier","gardener","customer0","customer1","departing","energy","dream"]:
 		var path="res://game/art/"+name+".png"
 		if ResourceLoader.exists(path): textures[name]=load(path)
+	coin_tex=load("res://game/art/coin.svg")
 
 func _process(dt):
 	clock+=dt
@@ -33,10 +38,52 @@ func _process(dt):
 		for i in range(customers.size()): customers[i].p=customers[i].p.move_toward(Vector2(378-i*35,490+i*48),dt*80)
 		for c in departures: c.p=c.p.move_toward(Vector2(215,700),dt*100)
 		departures=departures.filter(func(c):return c.p.y<690)
+	for k in bounce.keys(): bounce[k]=maxf(0,bounce[k]-dt*2.6)
+	for q in particles:
+		q.p+=q.v*dt
+		q.v.y+=q.g*dt
+		q.v*=1.0-q.drag*dt
+		q.life-=dt
+	particles=particles.filter(func(q):return q.life>0)
+	for f in floaters:
+		f.t+=dt
+	floaters=floaters.filter(func(f):return f.t<1.3)
 	redraw_clock+=dt
 	if redraw_clock>=1.0/30.0:
 		redraw_clock=0
 		queue_redraw()
+
+func spray(at:Vector2,count:int,kind:String,color:Color,speed:=160.0,up:=-120.0,g:=320.0,life:=0.9):
+	for i in range(count):
+		var dir=Vector2.from_angle(randf_range(-PI,0))*randf_range(.35,1)*speed+Vector2(0,up)
+		particles.append({"p":at+Vector2(randf_range(-14,14),randf_range(-6,6)),"v":dir,"g":g,"drag":1.2,"life":life*randf_range(.7,1.1),"max":life,"kind":kind,"color":color,"r":randf_range(3,6)*(1.6 if kind=="leaf" else 1.0),"spin":randf_range(-6,6)})
+
+# Visual response to economy feedback; positions are in the 540x660 scene space.
+func burst(kind:String):
+	match kind:
+		"harvest":
+			for i in range(2):
+				var at=Vector2(185+i*170,320+i*90) if garden else Vector2(310+i*150,70+i*35)
+				spray(at,12,"leaf",Color("8fd16a"),170,-190,300,1.1)
+				bounce["bed"+str(i)]=1.0
+		"brew":
+			if not garden:
+				spray(Vector2(113,240),12,"dot",Color("b58af1"),120,-150,380,.8)
+				bounce["cauldron"]=1.0
+		"stock":
+			if not garden:
+				spray(Vector2(445,250),8,"star",Color("fff1af"),110,-60,60,.8)
+				bounce["shelf"]=1.0
+				bounce["cauldron"]=.6
+		"sale","dream_sale":
+			var at=Vector2(400,410) if not garden else Vector2(440,70)
+			if not garden:
+				spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
+				bounce["counter"]=.7
+			floaters.append({"p":at-Vector2(20,30),"t":0.0,"text":"+%d"%model.price(1 if kind=="dream_sale" else 0),"dream":kind=="dream_sale"})
+		"upgrade":
+			spray(Vector2(270,300),26,"star",Color("ffd765"),300,-120,140,1.2)
+			spray(Vector2(270,300),14,"dot",Color("b58af1"),260,-160,260,1.0)
 
 func leave_customer():
 	if not customers.is_empty(): departures.append(customers.pop_front())
@@ -55,6 +102,45 @@ func sprite(name:String,p:Vector2,w:float):
 	var tex:Texture2D=textures[name]
 	var h=w*tex.get_height()/tex.get_width()
 	draw_texture_rect(tex,Rect2(p-Vector2(w/2,h),Vector2(w,h)),false)
+
+func sprite_bounce(name:String,p:Vector2,w:float,key:String):
+	var t:float=bounce.get(key,0.0)
+	var squash=sin(t*PI*3.0)*t*.12
+	if not textures.has(name): return
+	var tex:Texture2D=textures[name]
+	var sw=w*(1+squash)
+	var h=w*tex.get_height()/tex.get_width()*(1-squash)
+	draw_texture_rect(tex,Rect2(p-Vector2(sw/2,h),Vector2(sw,h)),false)
+
+func twinkle(p:Vector2,r:float,c:Color):
+	poly([p+Vector2(0,-r),p+Vector2(r*.28,-r*.28),p+Vector2(r,0),p+Vector2(r*.28,r*.28),p+Vector2(0,r),p+Vector2(-r*.28,r*.28),p+Vector2(-r,0),p+Vector2(-r*.28,-r*.28)],c)
+
+func glints(center:Vector2,spread:Vector2,seed:float):
+	for i in range(3):
+		var t=fmod(clock*.8+i*.37+seed,1.0)
+		var a=sin(t*PI)
+		twinkle(center+Vector2(sin(i*2.1+seed)*spread.x,cos(i*1.7+seed)*spread.y),3+a*5,Color(1,.96,.7,a))
+
+func draw_effects():
+	for q in particles:
+		var a=clampf(q.life/q.max*1.6,0,1)
+		match q.kind:
+			"coin": draw_texture_rect(coin_tex,Rect2(q.p-Vector2(9,9),Vector2(18,18)),false,Color(1,1,1,a))
+			"star": twinkle(q.p,q.r+2,Color(q.color,a))
+			"leaf":
+				var d=Vector2.from_angle(q.life*q.spin)*q.r*1.4
+				poly([q.p-d,q.p+d.orthogonal()*.45,q.p+d,q.p-d.orthogonal()*.45],Color(q.color,a))
+			_: draw_circle(q.p,q.r*(.5+a*.5),Color(q.color,a))
+	for f in floaters:
+		var e=1-pow(1-minf(f.t/1.3,1),3)
+		var p=f.p-Vector2(0,e*70)
+		var a=clampf((1.3-f.t)*2.5,0,1)
+		var s=24+int(10*maxf(0,.25-f.t)/.25)
+		var c=Color("7b3fd1") if f.dream else Color("2f7d4f")
+		draw_string_outline(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,6,Color(1,1,1,a))
+		draw_string(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,Color(c,a))
+		var w=font.get_string_size(f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s).x
+		draw_texture_rect(coin_tex,Rect2(p+Vector2(w+4,-s*.8),Vector2(s*.85,s*.85)),false,Color(1,1,1,a))
 
 func person(name:String,p:Vector2,w:=70.0):
 	oval(p-Vector2(0,3),Vector2(w*.34,9),Color(0.35,0.22,0.16,.16))
@@ -119,9 +205,10 @@ func _draw():
 	if not garden:
 		for i in range(2):
 			var p=Vector2(310+i*150,95+i*35)
-			sprite("bed",p,140)
+			sprite_bounce("bed",p,140,"bed"+str(i))
 			var plot=model.s.plots[i]
 			plant(p-Vector2(0,28),int(plot.crop),plot.progress/model.grow_time(int(plot.crop)))
+			if plot.progress>=model.grow_time(int(plot.crop)): glints(p-Vector2(0,45),Vector2(40,10),i*.5)
 	poly([Vector2(105,125),Vector2(620,290),Vector2(470,700),Vector2(-130,415)],Color("fae7cb"))
 	for line in floor_lines:draw_polyline(line,Color("e5ceb0"),1.2,true)
 	wall(Vector2(-25,273),Vector2(126,132),112)
@@ -132,14 +219,15 @@ func _draw():
 		# Garden view foreground beds keep crop actions legible.
 		for i in range(2):
 			var p=Vector2(185+i*170,350+i*90)
-			sprite("bed",p,205)
+			sprite_bounce("bed",p,205,"bed"+str(i))
 			var plot=model.s.plots[i]
 			plant(p-Vector2(0,43),int(plot.crop),plot.progress/model.grow_time(int(plot.crop)))
+			if plot.progress>=model.grow_time(int(plot.crop)): glints(p-Vector2(0,70),Vector2(60,14),i*.5)
 			pill(p+Vector2(-65,-135),"Harvest ready" if plot.progress>=model.grow_time(plot.crop) else "Growing herbs",plot.progress/model.grow_time(plot.crop),130)
 		person("gardener" if model.owned("gardener") else "owner",Vector2(235,535),95)
 	else:
 		sprite("plant",Vector2(365,292),48)
-		sprite("shelf",Vector2(449,334),153)
+		sprite_bounce("shelf",Vector2(449,334),153,"shelf")
 		for i in range(mini(model.stock_count(),12)):
 			var shelfpos=Vector2(403+(i%3)*36,252+(i%3)*11+(i/3)*24)
 			sprite("dream" if i<int(model.s.stock[1]) else "energy",shelfpos,28)
@@ -148,7 +236,8 @@ func _draw():
 		if model.s.pot!=-1:
 			oval(Vector2(113,292),Vector2(63,29),Color("b38bff"))
 			oval(Vector2(113,292),Vector2(59,25),Color("fff6ff"))
-		sprite("cauldron",Vector2(113,318),139)
+		sprite_bounce("cauldron",Vector2(113,318),139,"cauldron")
+		if model.s.ready: glints(Vector2(113,235),Vector2(45,12),.2)
 		if model.s.pot!=-1:
 			pill(Vector2(61,139),"Ready to stock" if model.s.ready else "Brewing",model.s.brew_progress/model.brew_time(model.s.pot),115)
 			for i in range(5):
@@ -158,19 +247,23 @@ func _draw():
 		sprite("flowers",Vector2(123,425),93)
 		if model.owned("brewer") or model.s.pot==-1:person("owner",Vector2(272+sin(clock*.6)*14,410),90)
 		if model.owned("cashier"):person("cashier",Vector2(459,419),70)
-		sprite("counter",Vector2(435,499),202)
+		sprite_bounce("counter",Vector2(435,499),202,"counter")
 		for c in customers:person("customer"+str(c.variant),c.p,69)
 		if model.owned("renovation"):
 			for i in range(6):draw_circle(Vector2(155+i*65,40+i*21),4,Color("fff1af"))
 	wall(Vector2(-25,454),Vector2(156,522),91)
 	wall(Vector2(310,583),Vector2(493,654),91)
 	poly([Vector2(155,523),Vector2(310,583),Vector2(281,641),Vector2(119,581)],Color("d9b082"),true)
-	for c in departures:
-		person("departing",c.p,74)
+	if not garden:
+		for c in departures:
+			person("departing",c.p,74)
 	for p in [Vector2(28,558),Vector2(90,600),Vector2(390,702),Vector2(514,701)]:sprite("bush",p,115)
 	sprite("plant",Vector2(133,552),44)
 	sprite("plant",Vector2(322,651),53)
-	if pulse>0 and effect in ["sale","dream_sale"]:
-		text(Vector2(220,540-(1.2-pulse)*35),"+%d ●"%model.price(1 if effect=="dream_sale" else 0),24)
-	if pulse>0 and effect=="stock":sprite("dream" if model.s.recipe else "energy",Vector2(180,240).lerp(Vector2(440,245),1-pulse/1.2),31)
+	if pulse>0 and effect=="stock" and not garden:
+		# Arc the new bottle from cauldron to shelf.
+		var t=clampf((1.2-pulse)/.6,0,1)
+		var p=Vector2(150,240).lerp(Vector2(440,245),t)-Vector2(0,sin(t*PI)*70)
+		if t<1: sprite("dream" if model.s.recipe else "energy",p,31)
+	draw_effects()
 	draw_set_transform(Vector2.ZERO)

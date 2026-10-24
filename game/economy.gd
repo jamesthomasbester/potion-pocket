@@ -162,7 +162,7 @@ func update_tutorial():
 	if stage == conditions.size(): first("tutorial_complete")
 
 func objective() -> String:
-	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in Improve • 32 coins","Save 320 coins for the grand glow-up","Your shop runs itself. What will you improve next?"][int(s.tutorial)]
+	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in Improve • 48 coins","Save 320 coins for the grand glow-up","Your shop runs itself. What will you improve next?"][int(s.tutorial)]
 
 func status() -> String:
 	if s.ready: return "Shelf full" if stock_count() >= capacity() else "Potion ready • stock the shelf"
