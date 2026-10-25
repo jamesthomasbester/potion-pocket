@@ -360,5 +360,45 @@ func _initialize():
 	check(m.valid(m.s),"post-branch save validates")
 	m.count("earned",200000)
 	check(m.pending_stars()==2,"stars count only this branch's earnings")
+	# Chunked catch-up matches one-shot catch-up, and pausing midway loses nothing.
+	var whole=E.new()
+	whole.s.owned={"gardener":true,"brewer":true,"cashier":true,"offline_8":true}
+	whole.s.timestamp=1000.0
+	var chunked=E.new()
+	chunked.s=whole.s.duplicate(true)
+	var paused=E.new()
+	paused.s=whole.s.duplicate(true)
+	var whole_report=whole.offline(1000.0+20000)
+	var job=chunked.begin_offline(1000.0+20000)
+	var rounds=0
+	while not chunked.step_offline(job,777): rounds+=1
+	var chunk_report=chunked.finish_offline(job)
+	check(rounds>200 and chunked.s.coins==whole.s.coins and chunked.s.stock==whole.s.stock and chunk_report.sold==whole_report.sold,"chunked catch-up equals one-shot catch-up")
+	var half=paused.begin_offline(1000.0+20000)
+	paused.step_offline(half,int(half.steps)/2)
+	store=S.new()
+	store.path="user://pause-catchup-test.json"
+	check(store.save(paused,paused.partial_timestamp(half)),"mid catch-up pause saves")
+	var reopened=E.new()
+	check(store.load_into(reopened,1000.0+20000),"reopened save loads")
+	check(reopened.s.coins==whole.s.coins and JSON.stringify(reopened.s.stock)==JSON.stringify(JSON.parse_string(JSON.stringify(whole.s.stock))) and is_equal_approx(reopened.s.elapsed,whole.s.elapsed),"pausing mid catch-up neither loses nor repeats time")
+	var deferred=E.new()
+	var before_defer=JSON.parse_string(FileAccess.get_file_as_string(store.path)).coins
+	check(store.load_into(deferred,1000.0+40000,true) and deferred.s.coins==before_defer,"deferred load leaves catch-up to the caller")
+	# Fast-forwarding quiet ticks must match plain tick-by-tick play exactly.
+	for setup in [{"gardener":true},{"gardener":true,"brewer":true},{"gardener":true,"brewer":true,"cashier":true,"recipe":true},{"cashier":true}]:
+		var plain=E.new()
+		plain.s.owned=setup.duplicate()
+		plain.s.flags={"first_harvest":true,"first_brew":true,"first_sale":true}
+		plain.s.levels.counter=12
+		plain.s.stock=P([3])
+		var fast=E.new()
+		fast.s=plain.s.duplicate(true)
+		plain.begin_ticks()
+		for i in range(18000): plain.tick(plain.cfg.step)
+		plain.end_ticks()
+		plain.check_achievements()
+		fast.simulate(1800)
+		check(JSON.stringify(plain.s)==JSON.stringify(fast.s),"fast-forward matches tick-by-tick: "+",".join(setup.keys()))
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

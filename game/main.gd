@@ -45,6 +45,14 @@ var toast: PanelContainer
 var toast_label: Label
 var toast_queue: Array = []
 var day_timer := 0.0
+var catch_job: Dictionary = {}
+var catch_layer: Control
+var catch_bar: ProgressBar
+var catch_label: Label
+# Absences shorter than this catch up instantly; longer ones show progress.
+const CATCH_UP_INSTANT := 3000
+# Frame time spent on catch-up, so the screen keeps drawing and stays responsive.
+const CATCH_UP_BUDGET_USEC := 25000
 var welcome_layer: Control
 var welcome_lines: VBoxContainer
 var welcome_away: Label
@@ -186,7 +194,7 @@ func _ready():
 		storage.path="user://qa_play.json"
 		storage.reset(model)
 	else:
-		storage.load_into(model)
+		storage.load_into(model,-1.0,true)
 	model.event("session_start")
 	sound=Sound.new()
 	add_child(sound)
@@ -197,8 +205,8 @@ func _ready():
 	if storage.locked:
 		modal.dialog_text=storage.error
 		modal.popup_centered(Vector2i(460,180))
-	elif not model.s.offline_notice.is_empty():
-		show_welcome(model.s.offline_notice)
+	elif not harness:
+		start_catch_up(Time.get_unix_time_from_system())
 	if "--qa" in OS.get_cmdline_user_args(): call_deferred("run_capture")
 
 func build_ui():
@@ -448,6 +456,7 @@ func build_ui():
 	content.add_child(button("Back to the shop",func(): close_upgrades()))
 	upgrade_layer.hide()
 	build_welcome()
+	build_catch_up()
 	toast=PanelContainer.new()
 	var toast_style:=style(INK,18)
 	toast_style.content_margin_left=16
@@ -606,6 +615,86 @@ func show_daily():
 	for a in model.ACHIEVEMENTS:
 		shop_card(trophy,a[1],a[2],func(): pass,"ach_"+a[0])
 	open_cards()
+
+func build_catch_up():
+	catch_layer=ColorRect.new()
+	catch_layer.color=Color(0.1,0.08,0.2,0.45)
+	catch_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	catch_layer.mouse_filter=Control.MOUSE_FILTER_STOP
+	add_child(catch_layer)
+	var centre:=CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	catch_layer.add_child(centre)
+	var card:=PanelContainer.new()
+	var st:=style(CREAM,26)
+	st.content_margin_left=24
+	st.content_margin_right=24
+	st.content_margin_top=22
+	st.content_margin_bottom=24
+	card.add_theme_stylebox_override("panel",st)
+	card.custom_minimum_size.x=420
+	centre.add_child(card)
+	var stack:=VBoxContainer.new()
+	stack.add_theme_constant_override("separation",12)
+	card.add_child(stack)
+	var head:=row()
+	stack.add_child(head)
+	head.add_child(picture(load("res://game/art/gardener.png"),64))
+	var titles:=VBoxContainer.new()
+	titles.alignment=BoxContainer.ALIGNMENT_CENTER
+	head.add_child(titles)
+	titles.add_child(label("Your team is catching up…",23))
+	catch_label=label("",16)
+	catch_label.add_theme_color_override("font_color",Color("4b4e72"))
+	titles.add_child(catch_label)
+	catch_bar=ProgressBar.new()
+	catch_bar.show_percentage=false
+	catch_bar.custom_minimum_size.y=14
+	catch_bar.add_theme_stylebox_override("background",style(SAND,7))
+	catch_bar.add_theme_stylebox_override("fill",style(TEAL,7))
+	stack.add_child(catch_bar)
+	catch_layer.hide()
+
+# Offline work since the last save: short gaps run at once, long ones a slice
+# per frame behind the progress card.
+func start_catch_up(now: float):
+	var job:Dictionary=model.begin_offline(now)
+	if int(job.steps)<=CATCH_UP_INSTANT:
+		model.step_offline(job,int(job.steps))
+		finish_catch_up(job)
+		return
+	catch_job=job
+	catch_label.text="Finishing %s of work while you were away" % duration(job.elapsed)
+	catch_bar.value=0
+	catch_layer.show()
+	# The scene stays drawn but stops animating, leaving the frame for catch-up.
+	room.set_process(false)
+
+func step_catch_up():
+	var start:=Time.get_ticks_usec()
+	var done:=false
+	while not done and Time.get_ticks_usec()-start<CATCH_UP_BUDGET_USEC:
+		done=model.step_offline(catch_job,400)
+	catch_bar.value=100.0*int(catch_job.done)/maxf(1,int(catch_job.steps))
+	if done:
+		var job:=catch_job
+		catch_job={}
+		catch_layer.hide()
+		room.set_process(true)
+		finish_catch_up(job)
+
+func finish_catch_up(job: Dictionary):
+	var report:Dictionary=model.finish_offline(job)
+	shown_coins=model.s.coins
+	accumulator=0.0
+	persist()
+	refresh()
+	# Skip the card for quick returns that earned nothing.
+	if model.s.offline_notice.is_empty(): return
+	if int(report.coins)>0 or int(report.seconds)>=180: show_welcome(report)
+	else:
+		model.s.offline_notice={}
+		persist()
 
 func duration(seconds: float) -> String:
 	var t:=int(seconds)
@@ -1029,7 +1118,7 @@ func flush_feedback():
 	model.feedback.clear()
 
 func persist():
-	if harness: return
+	if harness or not catch_job.is_empty(): return
 	if not storage.save(model):
 		status.text=storage.error
 	if not model.events.is_empty():
@@ -1055,6 +1144,9 @@ func animate_ui(dt: float):
 
 func _process(dt):
 	if storage.locked: return
+	if not catch_job.is_empty():
+		step_catch_up()
+		return
 	perf_frames.append(dt*1000.0)
 	perf_clock += dt
 	if perf_clock >= 30:
@@ -1087,12 +1179,16 @@ func _process(dt):
 
 func _notification(what):
 	if what in [NOTIFICATION_APPLICATION_PAUSED,NOTIFICATION_WM_CLOSE_REQUEST]:
-		if is_instance_valid(status): persist()
-	if what==NOTIFICATION_APPLICATION_RESUMED and is_instance_valid(status) and not harness:
-		model.offline(Time.get_unix_time_from_system())
-		shown_coins=model.s.coins
-		persist()
-		if not model.s.offline_notice.is_empty(): show_welcome(model.s.offline_notice)
+		if not catch_job.is_empty():
+			# Save only the simulated part; the rest catches up on return.
+			var job:=catch_job
+			catch_job={}
+			catch_layer.hide()
+			room.set_process(true)
+			if not harness: storage.save(model,model.partial_timestamp(job))
+		elif is_instance_valid(status): persist()
+	if what==NOTIFICATION_APPLICATION_RESUMED and is_instance_valid(status) and not harness and catch_job.is_empty():
+		start_catch_up(Time.get_unix_time_from_system())
 	if what==NOTIFICATION_WM_GO_BACK_REQUEST:
 		if is_instance_valid(upgrade_layer): upgrade_layer.hide()
 

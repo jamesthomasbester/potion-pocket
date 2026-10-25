@@ -417,18 +417,26 @@ func select_recipe(value: int):
 
 func tick(dt: float):
 	s.elapsed += dt
+	# Hot loop: read cached numbers and worker flags once, and only call the
+	# actions that could do something this tick. Rules are unchanged.
+	var gardener: bool = _d.gardener if _fast else owned("gardener")
+	var brewer: bool = _d.brewer if _fast else owned("brewer")
+	var cashier: bool = _d.cashier if _fast else owned("cashier")
+	var any_ready := false
 	for p in s.plots:
-		var grow := grow_time(int(p.crop))
+		var grow: float = _d.grow_time[int(p.crop)] if _fast else grow_time(int(p.crop))
 		p.progress = minf(p.progress + dt, grow)
-		if p.progress + 0.00001 >= grow: p.progress = grow
-	if owned("gardener"): harvest()
+		if p.progress + 0.00001 >= grow:
+			p.progress = grow
+			any_ready = true
+	if gardener and any_ready: harvest()
 	if s.pot != -1 and not s.ready:
 		s.brew_progress += dt
 		if s.brew_progress + 0.00001 >= brew_time(int(s.pot)):
 			s.ready = true
-	if owned("brewer"):
-		stock()
-		brew()
+	if brewer:
+		if s.ready: stock()
+		if s.pot == -1: brew()
 	if s.visitor.is_empty():
 		s.visitor_timer += dt
 		if s.visitor_timer >= cfg.visitors.every:
@@ -440,10 +448,10 @@ func tick(dt: float):
 			event("missed_" + s.visitor.kind)
 			s.visitor = {}
 	s.arrival += dt
-	if s.arrival >= arrival_time():
+	if s.arrival >= (_d.arrival_time if _fast else arrival_time()):
 		s.arrival = 0.0
 		s.queue = min(queue_capacity(), s.queue + 1)
-	if owned("cashier"): serve()
+	if cashier and not s.serving and s.queue > 0: serve()
 	if s.serving:
 		s.service += dt
 		if s.service + 0.00001 >= service_time():
@@ -644,7 +652,7 @@ var _fast := false
 var _d := {}
 func begin_ticks():
 	_fast = false
-	_d = {"herb_capacity":herb_capacity(),"queue_capacity":queue_capacity(),"arrival_time":arrival_time(),"service_time":service_time(),"capacity":capacity(),"grow_time":[],"brew_time":[],"price":[]}
+	_d = {"gardener":owned("gardener"),"brewer":owned("brewer"),"cashier":owned("cashier"),"herb_capacity":herb_capacity(),"queue_capacity":queue_capacity(),"arrival_time":arrival_time(),"service_time":service_time(),"capacity":capacity(),"grow_time":[],"brew_time":[],"price":[]}
 	for c in range(cfg.crops.size()): _d.grow_time.append(grow_time(c))
 	for r in range(cfg.recipes.size()):
 		_d.brew_time.append(brew_time(r))
@@ -654,10 +662,90 @@ func begin_ticks():
 func end_ticks():
 	_fast = false
 
+# Runs n ticks, fast-forwarding stretches where only timers advance. Each
+# skipped tick repeats tick()'s float arithmetic exactly, so results match.
+func run_ticks(n: int):
+	var i := 0
+	while i < n:
+		i += quiet_ticks(n - i)
+		if i < n:
+			tick(cfg.step)
+			i += 1
+
+# True when a worker would act on the very next tick.
+func action_due() -> bool:
+	var gardener: bool = _d.gardener if _fast else owned("gardener")
+	var brewer: bool = _d.brewer if _fast else owned("brewer")
+	var cashier: bool = _d.cashier if _fast else owned("cashier")
+	if gardener:
+		for p in s.plots:
+			var c := int(p.crop)
+			if p.progress + 0.00001 >= grow_time(c) and s.herbs[c] + int(cfg.crops[c].yield) <= herb_capacity(): return true
+	if brewer:
+		if s.ready and stock_count() + int(cfg.recipes[int(s.pot)].produce) <= capacity(): return true
+		if s.pot == -1 and stock_count() < capacity() and can_brew(int(s.recipe)): return true
+	if cashier and not s.serving and s.queue > 0 and stock_count() > 0: return true
+	return false
+
+# Advances up to limit ticks in which no timer crosses its threshold and no
+# worker can act; returns how many were applied.
+func quiet_ticks(limit: int) -> int:
+	if limit <= 0 or not _fast or action_due(): return 0
+	var dt: float = cfg.step
+	var elapsed: float = s.elapsed
+	var progress := []
+	var grows := []
+	for p in s.plots:
+		progress.append(float(p.progress))
+		grows.append(float(_d.grow_time[int(p.crop)]))
+	var brewing: bool = s.pot != -1 and not s.ready
+	var brew_progress: float = s.brew_progress
+	var brew_at: float = _d.brew_time[int(s.pot)] if brewing else 0.0
+	var has_visitor: bool = not s.visitor.is_empty()
+	var visitor_timer: float = s.visitor_timer
+	var visitor_left: float = s.visitor.left if has_visitor else 0.0
+	var arrival: float = s.arrival
+	var serving: bool = s.serving
+	var service: float = s.service
+	var every: float = cfg.visitors.every
+	var arrive_at: float = _d.arrival_time
+	var serve_at: float = _d.service_time
+	var done := 0
+	while done < limit:
+		# Stop before any tick that would cross a threshold; tick() handles it.
+		for k in range(progress.size()):
+			if progress[k] < grows[k] and minf(progress[k] + dt, grows[k]) + 0.00001 >= grows[k]: return commit_quiet(done, elapsed, progress, brew_progress, visitor_timer, visitor_left, arrival, service)
+		if brewing and brew_progress + dt + 0.00001 >= brew_at: break
+		if has_visitor:
+			if visitor_left - dt <= 0: break
+		elif visitor_timer + dt >= every: break
+		if arrival + dt >= arrive_at: break
+		if serving and service + dt + 0.00001 >= serve_at: break
+		elapsed += dt
+		for k in range(progress.size()): progress[k] = minf(progress[k] + dt, grows[k])
+		if brewing: brew_progress += dt
+		if has_visitor: visitor_left -= dt
+		else: visitor_timer += dt
+		arrival += dt
+		if serving: service += dt
+		done += 1
+	return commit_quiet(done, elapsed, progress, brew_progress, visitor_timer, visitor_left, arrival, service)
+
+func commit_quiet(done: int, elapsed: float, progress: Array, brew_progress: float, visitor_timer: float, visitor_left: float, arrival: float, service: float) -> int:
+	if done == 0: return 0
+	s.elapsed = elapsed
+	for k in range(progress.size()): s.plots[k].progress = progress[k]
+	if s.pot != -1 and not s.ready: s.brew_progress = brew_progress
+	if s.visitor.is_empty(): s.visitor_timer = visitor_timer
+	else: s.visitor.left = visitor_left
+	s.arrival = arrival
+	if s.serving: s.service = service
+	return done
+
 func simulate(seconds: float):
 	var count := int(floor(maxf(0.0, seconds) / cfg.step))
 	begin_ticks()
-	for i in range(count): tick(cfg.step)
+	run_ticks(count)
 	end_ticks()
 	check_achievements()
 	feedback.clear()
@@ -668,16 +756,39 @@ func offline_cap() -> float:
 	return float(cfg.offline_cap)
 
 func offline(now: float) -> Dictionary:
+	var job := begin_offline(now)
+	step_offline(job, int(job.steps))
+	return finish_offline(job)
+
+# Catch-up in three parts so the UI can spread long absences across frames.
+func begin_offline(now: float) -> Dictionary:
 	var away: float = now - s.timestamp if s.timestamp > 0 else 0.0
 	var elapsed := clampf(away,0.0,offline_cap())
-	var before := int(s.coins)
-	var counted := tally.duplicate()
-	simulate(elapsed)
+	return {"now":now,"away":away,"elapsed":elapsed,"steps":int(floor(elapsed / cfg.step)),"done":0,"before":int(s.coins),"counted":tally.duplicate()}
+
+# Runs up to max_steps ticks; true once the whole absence is simulated.
+func step_offline(job: Dictionary, max_steps: int) -> bool:
+	var n := mini(max_steps, int(job.steps) - int(job.done))
+	begin_ticks()
+	run_ticks(n)
+	end_ticks()
+	job.done = int(job.done) + n
+	return int(job.done) >= int(job.steps)
+
+# Timestamp to save if the app pauses mid catch-up: only the simulated part
+# counts as caught up, so the rest is neither lost nor credited twice.
+func partial_timestamp(job: Dictionary) -> float:
+	return float(job.now) - (int(job.steps) - int(job.done)) * float(cfg.step)
+
+func finish_offline(job: Dictionary) -> Dictionary:
+	check_achievements()
+	feedback.clear()
+	var now: float = job.now
 	# A high-water timestamp prevents replay after a backwards clock change.
 	s.timestamp = maxf(now,s.timestamp)
-	var report := {"seconds":int(elapsed),"coins":int(s.coins)-before,"capped":away > offline_cap() + 1.0,"cap":int(offline_cap())}
-	for key in tally: report[key] = tally[key] - counted[key]
-	if elapsed >= 10:
+	var report := {"seconds":int(job.elapsed),"coins":int(s.coins)-int(job.before),"capped":float(job.away) > offline_cap() + 1.0,"cap":int(offline_cap())}
+	for key in tally: report[key] = tally[key] - job.counted[key]
+	if float(job.elapsed) >= 10:
 		s.offline_notice = report
 		event("offline_reward_claim")
 	return report

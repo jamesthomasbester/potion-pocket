@@ -29,7 +29,8 @@ func save(model, now: float = -1.0) -> bool:
 	model.dirty = false
 	return true
 
-func load_into(model, now: float = -1.0) -> bool:
+# With defer, the caller runs offline catch-up itself (see main.start_catch_up).
+func load_into(model, now: float = -1.0, defer: bool = false) -> bool:
 	if now < 0: now = Time.get_unix_time_from_system()
 	var exists := false
 	for suffix in ["", ".tmp", ".bak"]:
@@ -42,6 +43,7 @@ func load_into(model, now: float = -1.0) -> bool:
 			return false
 		if model.valid(v):
 			model.s = v
+			if defer: return true
 			model.offline(now)
 			# Persist before showing a welcome-back report; dismiss never credits money.
 			save(model,now)
