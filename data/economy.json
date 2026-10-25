@@ -204,6 +204,18 @@
       "name": "The grand glow-up",
       "cost": 320,
       "benefit": "New tiles, walls + sign; sales +25%"
+    },
+    {
+      "id": "offline_4",
+      "name": "Night-owl lantern",
+      "cost": 2000,
+      "benefit": "Your team keeps working up to 4 h while you're away"
+    },
+    {
+      "id": "offline_8",
+      "name": "Moon clock",
+      "cost": 25000,
+      "benefit": "Offline work up to 8 h"
     }
   ],
   "stations": [

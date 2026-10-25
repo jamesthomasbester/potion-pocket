@@ -32,7 +32,7 @@ func _initialize():
 	check(not m.serve(),"rapid checkout cannot duplicate")
 	m.simulate(1.8)
 	check(m.s.coins==8 and m.s.stock[0]==1,"valid sale deducts bottle and grants price")
-	m.s.coins=1000
+	m.s.coins=100000
 	for p in m.cfg.purchases:
 		var before=m.s.coins
 		check(m.purchase(p.id) and m.s.coins==before-p.cost,"purchase charges once: "+p.id)
@@ -301,5 +301,19 @@ func _initialize():
 	no_visitor.erase("visitor")
 	no_visitor.erase("visitor_timer")
 	check(m.valid(m.migrate(no_visitor)) and no_visitor.visitor.is_empty(),"early version 4 saves gain visitor defaults")
+	# Welcome-back report and offline cap upgrades.
+	m=E.new()
+	m.s.owned={"gardener":true,"brewer":true,"cashier":true}
+	m.s.timestamp=1000.0
+	var away=m.offline(1000.0+20000)
+	check(away.seconds==7200 and away.capped and away.harvested>0 and away.brewed>0 and away.sold>0,"report counts harvests, brews and sales and flags the cap")
+	check(away.sold==int(m.s.offline_notice.sold),"report is kept for the welcome screen")
+	m.s.owned.offline_4=true
+	m.s.timestamp=100000.0
+	check(m.offline(100000.0+20000).seconds==14400,"lantern raises the offline cap to four hours")
+	m.s.owned.offline_8=true
+	m.s.timestamp=200000.0
+	var long_away=m.offline(200000.0+20000)
+	check(long_away.seconds==20000 and not long_away.capped,"moon clock covers eight hours")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

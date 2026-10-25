@@ -6,6 +6,8 @@ var events: Array = []
 var feedback: Array = []
 var dirty := false
 var last_visitor_pay := 0
+# Running totals for the welcome-back report; not saved.
+var tally := {"harvested":0,"brewed":0,"sold":0}
 const VERSION := 4
 const MAX_PLOTS := 6
 const STATIONS := ["garden","cauldron","counter","shelf"]
@@ -299,6 +301,7 @@ func harvest() -> bool:
 		var amount := int(cfg.crops[c].yield)
 		if p.progress >= grow_time(c) and s.herbs[c] + amount <= herb_capacity():
 			s.herbs[c] += amount
+			tally.harvested += amount
 			p.progress = 0.0
 			p.crop = seed_for(i)
 			did = true
@@ -329,6 +332,7 @@ func stock() -> bool:
 	s.brew_progress = 0.0
 	first("first_brew")
 	feedback.append("stock")
+	tally.brewed += 1
 	dirty = true
 	return true
 
@@ -412,6 +416,7 @@ func tick(dt: float):
 				s.queue -= 1
 				first("first_sale")
 				feedback.append("dream_sale" if r >= 1 else "sale")
+				tally.sold += 1
 				dirty = true
 			s.serving = false
 			s.service = 0.0
@@ -471,13 +476,21 @@ func simulate(seconds: float):
 	for i in range(count): tick(cfg.step)
 	feedback.clear()
 
+func offline_cap() -> float:
+	if owned("offline_8"): return 28800.0
+	if owned("offline_4"): return 14400.0
+	return float(cfg.offline_cap)
+
 func offline(now: float) -> Dictionary:
-	var elapsed := clampf(now - s.timestamp,0.0,cfg.offline_cap) if s.timestamp > 0 else 0.0
+	var away: float = now - s.timestamp if s.timestamp > 0 else 0.0
+	var elapsed := clampf(away,0.0,offline_cap())
 	var before := int(s.coins)
+	var counted := tally.duplicate()
 	simulate(elapsed)
 	# A high-water timestamp prevents replay after a backwards clock change.
 	s.timestamp = maxf(now,s.timestamp)
-	var report := {"seconds":int(elapsed),"coins":int(s.coins)-before}
+	var report := {"seconds":int(elapsed),"coins":int(s.coins)-before,"capped":away > offline_cap() + 1.0,"cap":int(offline_cap())}
+	for key in tally: report[key] = tally[key] - counted[key]
 	if elapsed >= 10:
 		s.offline_notice = report
 		event("offline_reward_claim")

@@ -39,6 +39,10 @@ var upgrade_list: VBoxContainer
 var purchase_buttons := {}
 var purchase_cards := {}
 var modal: AcceptDialog
+var welcome_layer: Control
+var welcome_lines: VBoxContainer
+var welcome_away: Label
+var welcome_coins: Label
 var reset_dialog: ConfirmationDialog
 var root_box: VBoxContainer
 var settings_box: VBoxContainer
@@ -65,7 +69,7 @@ const GOLD = Color("f2b632")
 const DISABLED = Color("e4e2dc")
 const STATION_ICONS = {"garden":"leaves","cauldron":"cauldron","counter":"counter","shelf":"shelf"}
 # Purchase cards reuse the scene sprites so the menu reads like the shop.
-const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron","service":"counter","capacity":"shelf","renovation":"flowers"}
+const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron","service":"counter","capacity":"shelf","renovation":"flowers","offline_4":"owner","offline_8":"dream_t3"}
 
 func style(c: Color, radius: int = 14) -> StyleBoxFlat:
 	var st := StyleBoxFlat.new()
@@ -187,10 +191,7 @@ func _ready():
 		modal.dialog_text=storage.error
 		modal.popup_centered(Vector2i(460,180))
 	elif not model.s.offline_notice.is_empty():
-		modal.dialog_text="Welcome back!\nAway for %d seconds. Your team earned %s coins.\nOffline work is limited to two hours." % [model.s.offline_notice.seconds,model.short(model.s.offline_notice.coins)]
-		modal.popup_centered(Vector2i(460,230))
-		model.s.offline_notice={}
-		persist()
+		show_welcome(model.s.offline_notice)
 	if "--qa" in OS.get_cmdline_user_args(): call_deferred("run_capture")
 
 func build_ui():
@@ -423,6 +424,7 @@ func build_ui():
 	scroll.add_child(upgrade_list)
 	content.add_child(button("Back to the shop",func(): close_upgrades()))
 	upgrade_layer.hide()
+	build_welcome()
 	modal=AcceptDialog.new()
 	modal.title="Little Lux"
 	add_child(modal)
@@ -458,6 +460,80 @@ func build_ui():
 			control.add_theme_color_override("font_hover_color",INK)
 			control.add_theme_color_override("font_pressed_color",INK)
 			paint(control,TEAL if control==dialog.get_ok_button() else SAND)
+
+func build_welcome():
+	welcome_layer=ColorRect.new()
+	welcome_layer.color=Color(0.1,0.08,0.2,0.45)
+	welcome_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(welcome_layer)
+	var centre:=CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	welcome_layer.add_child(centre)
+	var card:=PanelContainer.new()
+	var st:=style(CREAM,26)
+	st.content_margin_left=24
+	st.content_margin_right=24
+	st.content_margin_top=22
+	st.content_margin_bottom=20
+	card.add_theme_stylebox_override("panel",st)
+	card.custom_minimum_size.x=440
+	centre.add_child(card)
+	var stack:=VBoxContainer.new()
+	stack.add_theme_constant_override("separation",10)
+	card.add_child(stack)
+	var head:=row()
+	stack.add_child(head)
+	head.add_child(picture(load("res://game/art/owner.png"),72))
+	var titles:=VBoxContainer.new()
+	titles.alignment=BoxContainer.ALIGNMENT_CENTER
+	head.add_child(titles)
+	titles.add_child(label("Welcome back!",28))
+	welcome_away=label("",17)
+	welcome_away.add_theme_color_override("font_color",Color("4b4e72"))
+	titles.add_child(welcome_away)
+	var earned:=PanelContainer.new()
+	earned.add_theme_stylebox_override("panel",style(SAND,18))
+	stack.add_child(earned)
+	var coins_row:=row()
+	coins_row.alignment=BoxContainer.ALIGNMENT_CENTER
+	earned.add_child(coins_row)
+	coins_row.add_child(picture(coin_tex,40))
+	welcome_coins=label("",34)
+	coins_row.add_child(welcome_coins)
+	welcome_lines=VBoxContainer.new()
+	welcome_lines.add_theme_constant_override("separation",4)
+	stack.add_child(welcome_lines)
+	stack.add_child(button("Collect",func():
+		welcome_layer.hide()
+		sound.play("dream_sale"),60))
+	welcome_layer.hide()
+
+func duration(seconds: float) -> String:
+	var t:=int(seconds)
+	if t>=3600: return "%dh %dm" % [t/3600,(t%3600)/60]
+	if t>=60: return "%dm %ds" % [t/60,t%60]
+	return "%ds" % t
+
+# Coins are already credited when this shows; Collect only closes it.
+func show_welcome(report: Dictionary):
+	welcome_away.text="You were away %s" % duration(report.seconds)
+	welcome_coins.text="+"+model.short(report.coins)
+	for child in welcome_lines.get_children(): child.queue_free()
+	var lines:=[]
+	if model.owned("gardener"): lines.append("Pip harvested %s herbs" % model.short(report.get("harvested",0)))
+	if model.owned("brewer"): lines.append("Momo brewed %s potions" % model.short(report.get("brewed",0)))
+	if model.owned("cashier"): lines.append("Sol served %s customers" % model.short(report.get("sold",0)))
+	if lines.is_empty(): lines.append("Hire helpers in Team so the shop keeps working while you're away.")
+	if report.get("capped",false):
+		lines.append("Your team rested after %s. Improve → lanterns keep them working longer." % duration(report.get("cap",7200)))
+	for text_line in lines:
+		var l:=label(text_line,18)
+		l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		welcome_lines.add_child(l)
+	welcome_layer.show()
+	pop(welcome_layer.get_child(0).get_child(0),1.0,0.35,0.9)
+	model.s.offline_notice={}
+	persist()
 
 func toggle_mute():
 	model.s.muted=not model.s.muted
@@ -865,7 +941,9 @@ func _notification(what):
 		if is_instance_valid(status): persist()
 	if what==NOTIFICATION_APPLICATION_RESUMED and is_instance_valid(status) and not harness:
 		model.offline(Time.get_unix_time_from_system())
+		shown_coins=model.s.coins
 		persist()
+		if not model.s.offline_notice.is_empty(): show_welcome(model.s.offline_notice)
 	if what==NOTIFICATION_WM_GO_BACK_REQUEST:
 		if is_instance_valid(upgrade_layer): upgrade_layer.hide()
 
