@@ -342,5 +342,23 @@ func _initialize():
 	check(m.s.achievements.has("first_sale") and m.s.achievements.has("team") and m.new_achievements.has("Full team"),"achievements unlock from real progress")
 	check(m.stat("sold")==int(m.s.stats.sold) and m.s.stats.sold>0,"lifetime stats count sales")
 	check(m.valid(m.s),"save with goals, stats and achievements validates")
+	# Prestige: new branches and Moon Stars.
+	m=E.new()
+	m.s.prestige.run_earned=1000000
+	check(m.pending_stars()==4 and not m.can_prestige() and not m.open_branch(),"stars need a station at level 25")
+	m.s.levels.counter=25
+	m.s.owned={"gardener":true,"recipe":true,"renovation":true}
+	m.s.coins=999
+	m.s.achievements.first_sale=true
+	m.s.stats.sold=500
+	m.s.plots.append({"crop":0,"progress":0})
+	check(m.open_branch(),"a level 25 station and 1M earned open a branch")
+	check(m.s.prestige.stars==4 and m.s.prestige.branches==1 and m.s.prestige.run_earned==0 and m.branch_name()=="Seaside Lux","branch grants stars and moves on")
+	check(m.s.coins==0 and m.level("counter")==1 and m.s.owned.is_empty() and m.s.plots.size()==2,"coins, stations, upgrades and beds reset")
+	check(m.s.achievements.has("first_sale") and m.s.stats.sold==500,"achievements and lifetime stats stay")
+	check(m.price(0)==int(round(8*1.4)),"each Moon Star adds 10% to prices")
+	check(m.valid(m.s),"post-branch save validates")
+	m.count("earned",200000)
+	check(m.pending_stars()==2,"stars count only this branch's earnings")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

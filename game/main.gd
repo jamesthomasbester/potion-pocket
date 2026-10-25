@@ -50,6 +50,7 @@ var welcome_lines: VBoxContainer
 var welcome_away: Label
 var welcome_coins: Label
 var reset_dialog: ConfirmationDialog
+var branch_dialog: ConfirmationDialog
 var root_box: VBoxContainer
 var settings_box: VBoxContainer
 var card_icon: TextureRect
@@ -478,7 +479,19 @@ func build_ui():
 		shown_coins=model.s.coins
 		refresh())
 	add_child(reset_dialog)
-	for dialog in [modal,reset_dialog]:
+	branch_dialog=ConfirmationDialog.new()
+	branch_dialog.title="Open a new branch?"
+	branch_dialog.ok_button_text="Open branch"
+	branch_dialog.confirmed.connect(func():
+		if model.open_branch():
+			upgrade_layer.hide()
+			shown_coins=model.s.coins
+			switch_tab("shop")
+			persist()
+			show_toast("Welcome to %s! ★ %d Moon Stars" % [model.branch_name(),int(model.s.prestige.stars)])
+		refresh())
+	add_child(branch_dialog)
+	for dialog in [modal,reset_dialog,branch_dialog]:
 		var dialog_theme:=Theme.new()
 		dialog_theme.set_stylebox("panel","AcceptDialog",style(CREAM,18))
 		var border:=style(LAVENDER,18)
@@ -559,13 +572,18 @@ func show_toast(text_line: String):
 		toast.show()
 		sound.play("upgrade")
 		var tw:=toast.create_tween()
-		tw.tween_property(toast,"position:y",86.0,0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(toast,"position:y",156.0,0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tw.tween_interval(2.2)
 		tw.tween_property(toast,"position:y",-toast.size.y-10,0.25)
 		await tw.finished
 	toast.hide()
 
 const QUEST_ICONS = {"sold":"counter","brewed":"cauldron","harvested":"mint","levels":"shelf","specials":"customer1","earned":"coin"}
+
+func ask_branch():
+	if not model.can_prestige(): return
+	branch_dialog.dialog_text="Your shop starts over in %s with +%d Moon Stars (+%d%% potion prices, forever).\n\nKept: Moon Stars, achievements, lifetime stats, daily goals and streak.\nReset: coins, stations, team, upgrades, recipes and beds." % [model.BRANCHES[(int(model.s.prestige.branches)+1)%model.BRANCHES.size()],model.pending_stars(),int(model.pending_stars()*model.STAR_BONUS*100)]
+	branch_dialog.popup_centered(Vector2i(480,250))
 
 func show_daily():
 	clear_cards()
@@ -785,6 +803,8 @@ func show_upgrades(team: bool):
 	upgrade_title.text="Your team" if team else "Improve the shop"
 	overlay_sub.text="Earn coins by selling potions, then grow your little business."
 	if not team:
+		section("NEW BRANCH • Moon Stars raise every potion price for good")
+		shop_card(room.textures["dream_t3"],"","",func(): ask_branch(),"branch")
 		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
 		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 		section("ONE-TIME UPGRADES")
@@ -847,7 +867,8 @@ func tutorial_target() -> Button:
 
 func refresh():
 	if not is_instance_valid(header): return
-	header.text="Herb Garden" if tab=="garden" else "Potion Shop"
+	var stars:int=int(model.s.prestige.stars)
+	header.text=("Herb Garden" if tab=="garden" else "Potion Shop" if int(model.s.prestige.branches)==0 else model.branch_name())+(" ★%d" % stars if stars>0 else "")
 	if model.s.coins<shown_coins or not is_processing(): shown_coins=model.s.coins
 	coins_label.text=model.short(shown_coins)
 	var goal:String=model.objective()
@@ -930,6 +951,16 @@ func refresh():
 			b.disabled=owned or s.coins<p.cost
 			purchase_cards[p.id].modulate=Color(1,1,1,0.62) if owned else Color.WHITE
 	daily_dot.visible=model.claimable()
+	if purchase_buttons.has("branch"):
+		var b:Button=purchase_buttons["branch"]
+		var next_name:String=model.BRANCHES[(int(s.prestige.branches)+1)%model.BRANCHES.size()]
+		purchase_labels["branch"][0].text="Open %s" % next_name
+		if model.stat("top_level")<model.PRESTIGE_LEVEL:
+			purchase_labels["branch"][1].text="Reach Lv. %d on any station to open a branch" % model.PRESTIGE_LEVEL
+		else:
+			purchase_labels["branch"][1].text="+%d Moon Stars now • next star at %s earned this run" % [model.pending_stars(),model.short(pow(model.pending_stars()+1,2)*model.STAR_COINS)]
+		b.text="Open" if model.can_prestige() else "Locked"
+		b.disabled=not model.can_prestige()
 	if purchase_buttons.has("login"):
 		var login:Dictionary=s.login
 		var b:Button=purchase_buttons["login"]

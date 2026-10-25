@@ -10,6 +10,10 @@ var last_visitor_pay := 0
 var tally := {"harvested":0,"brewed":0,"sold":0}
 # Achievement names unlocked since the UI last showed them.
 var new_achievements: Array = []
+const BRANCHES := ["Little Lux","Seaside Lux","Snowpeak Lux","Night Market Lux","Sunflower Lux","Starfall Lux"]
+const STAR_COINS := 50000.0
+const STAR_BONUS := 0.1
+const PRESTIGE_LEVEL := 25
 const QUEST_TEXT := {"sold":"Serve %s customers","brewed":"Brew %s potions","harvested":"Harvest %s herbs","levels":"Level up stations %s times","specials":"Serve %s special visitors","earned":"Earn %s coins"}
 const ACHIEVEMENTS := [
 	["first_sale","First sale","Sell your first potion","sold",1],
@@ -41,7 +45,7 @@ func fresh():
 	dirty = true
 
 func fresh_state() -> Dictionary:
-	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{}}
+	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{},"prestige":{"stars":0,"branches":0,"run_earned":0}}
 	state.stock[0] = int(cfg.starting_stock)
 	return state
 
@@ -329,7 +333,8 @@ func brew_time(recipe: int) -> float:
 func price(recipe: int) -> int:
 	if _fast: return _d.price[recipe]
 	var shelf: float = (1.0 + cfg.shelf_price * (level("shelf") - 1)) * pow(2.0, milestones_reached("shelf"))
-	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf))
+	var stars := 1.0 + STAR_BONUS * int(s.prestige.stars)
+	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf * stars))
 
 func harvest() -> bool:
 	var did := false
@@ -465,6 +470,7 @@ func tick(dt: float):
 func count(kind: String, n: int):
 	if tally.has(kind): tally[kind] += n
 	s.stats[kind] = int(s.stats.get(kind, 0)) + n
+	if kind == "earned": s.prestige.run_earned = int(s.prestige.run_earned) + n
 	for q in s.daily.get("quests", []):
 		if q.kind == kind: q.progress = mini(int(q.target), int(q.progress) + n)
 
@@ -555,6 +561,33 @@ func claimable() -> bool:
 	for q in s.daily.get("quests", []):
 		if not q.claimed and int(q.progress) >= int(q.target): return true
 	return false
+
+func pending_stars() -> int:
+	return int(floor(sqrt(float(s.prestige.run_earned) / STAR_COINS)))
+
+func can_prestige() -> bool:
+	return stat("top_level") >= PRESTIGE_LEVEL and pending_stars() >= 1
+
+func branch_name() -> String:
+	return BRANCHES[int(s.prestige.branches) % BRANCHES.size()]
+
+# Open a new branch: the shop starts over; stars, records and settings stay.
+func open_branch() -> bool:
+	if not can_prestige(): return false
+	var stars := pending_stars()
+	var keep := {}
+	for key in ["stats","achievements","daily","login","muted","flags","elapsed","timestamp","prestige"]: keep[key] = s[key]
+	s = fresh_state()
+	for key in keep: s[key] = keep[key]
+	s.prestige.stars = int(s.prestige.stars) + stars
+	s.prestige.branches = int(s.prestige.branches) + 1
+	s.prestige.run_earned = 0
+	_mult_cache.clear()
+	update_tutorial()
+	event("open_branch_%d" % int(s.prestige.branches))
+	feedback.append("milestone")
+	dirty = true
+	return true
 
 func update_tutorial():
 	var conditions := [s.flags.has("first_harvest"),s.flags.has("first_brew"),s.flags.has("first_sale"),owned("gardener"),owned("brewer"),owned("cashier"),owned("recipe"),owned("renovation")]
@@ -664,8 +697,11 @@ func valid(v: Variant) -> bool:
 		for n in v[key]:
 			if not (n is float or n is int) or n < 0 or n != floor(n): return false
 	if not v.owned is Dictionary or not v.flags is Dictionary or not v.offline_notice is Dictionary: return false
-	for key in ["daily","login","stats","achievements"]:
+	for key in ["daily","login","stats","achievements","prestige"]:
 		if not v[key] is Dictionary: return false
+	for key in ["stars","branches","run_earned"]:
+		var n = v.prestige.get(key)
+		if not (n is float or n is int) or n < 0 or n != floor(n): return false
 	if v.daily.has("quests"):
 		if not v.daily.quests is Array: return false
 		for q in v.daily.quests:
