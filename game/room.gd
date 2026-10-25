@@ -40,9 +40,15 @@ const GARDEN_BEDS = [Vector2(-3.1,2.4),Vector2(2.3,5.4),Vector2(2.3,2.4),Vector2
 const BED_W = 180.0
 const VISITOR = Vector2(7.0,2.5)
 const SPROUT = [["4a9a3f","78c55a"],["3f7f3a","5ea452"],["9c3d2c","d8643f"],["2f7f8a","6cc0c8"],["3f7f3a","5ea452"]]
-const GRASS = Color("a9d675")
-const GRASS_DARK = Color("8cc05f")
 const STONE = Color("eadfc8")
+# One outdoor look per branch, in economy BRANCHES order: ground, tufts and a scenery touch.
+const THEMES = [
+	{"ground":"a9d675","tuft":"8cc05f","extra":""},
+	{"ground":"eedcae","tuft":"b9b46e","extra":"sea"},
+	{"ground":"eef3f8","tuft":"c3d1e2","extra":"snow"},
+	{"ground":"6f9468","tuft":"587a55","extra":"lanterns"},
+	{"ground":"b9d86c","tuft":"97b94f","extra":"sunflowers"},
+	{"ground":"b4bfe3","tuft":"929fcc","extra":"stars"}]
 
 func iso(u:float,v:float) -> Vector2: return SHOP_ORIGIN+U*u+V*v
 func giso(u:float,v:float) -> Vector2: return GARDEN_ORIGIN+U*u+V*v
@@ -404,11 +410,54 @@ func post(p:Vector2,h:float):
 	draw_line(p,p-Vector2(0,h+9),Color("966144"),19,true)
 	draw_line(p-Vector2(3,0),p-Vector2(3,h+9),Color("bd8159"),12,true)
 
+func theme() -> Dictionary:
+	return THEMES[int(model.s.prestige.branches) % THEMES.size()]
+
 func lawn():
-	draw_rect(Rect2(Vector2(-400,-300),Vector2(1400,1300)),GRASS)
+	var th:=theme()
+	draw_rect(Rect2(Vector2(-400,-300),Vector2(1400,1300)),Color(th.ground))
+	var tuft:=Color(th.tuft)
 	for t in tufts:
-		draw_line(t,t+Vector2(-3,-7),GRASS_DARK,2,true)
-		draw_line(t+Vector2(3,0),t+Vector2(4,-8),GRASS_DARK,2,true)
+		draw_line(t,t+Vector2(-3,-7),tuft,2,true)
+		draw_line(t+Vector2(3,0),t+Vector2(4,-8),tuft,2,true)
+	match th.extra:
+		"sea":
+			# A strip of sea along the far edge, with drifting wave crests and shells.
+			poly([Vector2(-400,-300),Vector2(1000,-300),Vector2(1000,34),Vector2(-400,34)],Color("7cc6d6"))
+			poly([Vector2(-400,34),Vector2(1000,34),Vector2(1000,44),Vector2(-400,44)],Color("f6efd9"))
+			for k in range(10):
+				var x=fmod(k*64.0+clock*12.0,640.0)-50
+				draw_arc(Vector2(x,18+(k%2)*8),12,PI*1.1,PI*1.9,8,Color("e9f7fa"),3,true)
+			for i in range(0,tufts.size(),6): oval(tufts[i],Vector2(7,4),Color("f2b9a6"))
+		"snow":
+			for i in range(0,tufts.size(),2):
+				var q:Vector2=tufts[i]
+				var y=fmod(q.y+clock*28.0,700.0)-20
+				var at=Vector2(q.x+sin(clock+i)*8,y)
+				draw_circle(at,4.2,Color("b9c9de"))
+				draw_circle(at,3.2,Color.WHITE)
+		"lanterns":
+			for row in [[Vector2(-10,30),Vector2(560,4)],[Vector2(-10,640),Vector2(560,610)]]:
+				var a:Vector2=row[0]
+				var b:Vector2=row[1]
+				draw_line(a,b,Color("3e3a52"),2,true)
+				for k in range(1,9):
+					var p=a.lerp(b,k/9.0)+Vector2(0,10)
+					draw_circle(p,18,Color(1,.78,.35,.25))
+					oval(p,Vector2(9,12),Color("f4a640") if k%2 else Color("e4574a"))
+			for i in range(0,tufts.size(),7):
+				if sin(clock*2+i)>.2: draw_circle(tufts[i]+Vector2(sin(clock+i)*6,-14),2,Color("fff4b0"))
+		"sunflowers":
+			for i in range(0,tufts.size(),4):
+				var q:Vector2=tufts[i]
+				draw_line(q,q-Vector2(0,34),Color("5e9a3c"),4,true)
+				mint_leaf(q-Vector2(0,12),q+Vector2(12,-22),5,Color("6fae45"))
+				for k in range(10): draw_circle(q-Vector2(0,40)+Vector2.from_angle(k*TAU/10)*9,5.5,Color("f6c531"))
+				draw_circle(q-Vector2(0,40),7,Color("8a5a2b"))
+		"stars":
+			for i in range(0,tufts.size(),4):
+				var glow=.5+.5*sin(clock*1.6+i*1.7)
+				twinkle(tufts[i]+Vector2(0,-6),6+glow*5,Color(1,.96,.75,.5+glow*.5))
 
 func stone(c:Vector2,o:Vector2):
 	var a=c-U*.42-V*.42
@@ -743,7 +792,7 @@ func _draw():
 	var factor=minf(size.x/540.0,size.y/660.0)
 	var base_height=size.y/factor
 	# The scene is drawn past its 540x660 frame, so wider areas show more of it.
-	draw_rect(Rect2(Vector2.ZERO,size),GRASS)
+	draw_rect(Rect2(Vector2.ZERO,size),Color(theme().ground))
 	view_offset=Vector2((size.x-540*factor)*.5,maxf(0,(base_height-660)*.35*factor))
 	view_scale=factor
 	draw_set_transform(view_offset,0,Vector2.ONE*factor)

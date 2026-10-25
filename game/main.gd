@@ -67,6 +67,7 @@ var card_detail: Label
 var upgrade_button: Button
 var card_milestone: Label
 var selected_station := "cauldron"
+var talent_section: Label
 var purchase_labels := {}
 var coin_tex: Texture2D
 var harness := false
@@ -84,6 +85,7 @@ const GOLD = Color("f2b632")
 const DISABLED = Color("e4e2dc")
 const STATION_ICONS = {"garden":"leaves","cauldron":"cauldron","counter":"counter","shelf":"shelf"}
 # Purchase cards reuse the scene sprites so the menu reads like the shop.
+const TALENT_ICONS = {"roots":"mint_t3","bubbles":"cauldron_t3","street":"customer0","patrons":"customer1","night":"owner","team":"gardener"}
 const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron","service":"counter","capacity":"shelf","renovation":"flowers","offline_4":"owner","offline_8":"dream_t3"}
 
 func style(c: Color, radius: int = 14) -> StyleBoxFlat:
@@ -591,7 +593,7 @@ const QUEST_ICONS = {"sold":"counter","brewed":"cauldron","harvested":"mint","le
 
 func ask_branch():
 	if not model.can_prestige(): return
-	branch_dialog.dialog_text="Your shop starts over in %s with +%d Moon Stars (+%d%% potion prices, forever).\n\nKept: Moon Stars, achievements, lifetime stats, daily goals and streak.\nReset: coins, stations, team, upgrades, recipes and beds." % [model.BRANCHES[(int(model.s.prestige.branches)+1)%model.BRANCHES.size()],model.pending_stars(),int(model.pending_stars()*model.STAR_BONUS*100)]
+	branch_dialog.dialog_text="Your shop starts over in %s with +%d Moon Stars (+%d%% potion prices, forever).\n\nKept: Moon Stars, talents, achievements, lifetime stats, daily goals and streak.\nReset: coins, stations, team, upgrades, recipes and beds." % [model.BRANCHES[(int(model.s.prestige.branches)+1)%model.BRANCHES.size()],model.pending_stars(),int(model.pending_stars()*model.STAR_BONUS*100)]
 	branch_dialog.popup_centered(Vector2i(480,250))
 
 func show_daily():
@@ -800,6 +802,11 @@ func buy(id: String):
 		if purchase_cards.has(id): pop(purchase_cards[id],1.0,0.35,1.06)
 	after_action()
 
+func buy_talent(id: String):
+	if storage.locked: return
+	if model.buy_talent(id) and purchase_cards.has("tl_"+id): pop(purchase_cards["tl_"+id],1.0,0.35,1.06)
+	after_action()
+
 func level_up(id: String):
 	if storage.locked: return
 	room.selected=id
@@ -817,10 +824,12 @@ func station_value(id: String) -> String:
 		"garden": return seconds(model.grow_time(int(model.s.plots[0].crop)))
 		"cauldron": return seconds(model.brew_time(int(model.s.recipe)))
 		"counter": return seconds(model.arrival_time())
+		"gardener": return seconds(model.grow_time(int(model.s.plots[0].crop)))
+		"brewer": return seconds(model.brew_time(int(model.s.recipe)))
 	return model.short(model.price(int(model.s.recipe)))
 
 func station_detail(id: String) -> String:
-	var label_text:String={"garden":"Grow","cauldron":"Brew","counter":"Customer every","shelf":"Price"}[id]
+	var label_text:String={"garden":"Grow","cauldron":"Brew","counter":"Customer every","shelf":"Price","gardener":"Grow","brewer":"Brew","cashier":"Price with tips"}[id]
 	var now:=station_value(id)
 	if model.level(id)>=int(model.cfg.max_level): return "%s %s" % [label_text,now]
 	model.s.levels[id]+=1
@@ -831,16 +840,17 @@ func station_detail(id: String) -> String:
 func station_milestone(id: String) -> String:
 	var m:int=model.next_milestone(id)
 	if m==0: return "★ Max level"
-	var what:String={"garden":"growth","cauldron":"brew speed","counter":"customers","shelf":"prices"}[id]
+	var what:String={"garden":"growth","cauldron":"brew speed","counter":"customers","shelf":"prices","gardener":"growth","brewer":"brew speed","cashier":"tips"}[id]
 	return "★ Lv. %d: ×2 %s" % [m,what]
 
 func station_name(id: String) -> String:
 	if id=="garden": return "Garden beds"
-	for st in model.cfg.stations:
+	for st in model.cfg.stations+model.cfg.workers:
 		if st.id==id: return st.name
 	return id
 
 func station_icon(id: String) -> Texture2D:
+	if id in model.WORKERS: return room.textures[id]
 	if id=="garden":
 		return room.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
 	return room.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
@@ -881,11 +891,12 @@ func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable
 	purchase_cards[key]=card
 	purchase_labels[key]=[name_label,benefit_label]
 
-func section(title: String):
+func section(title: String) -> Label:
 	var l:=label(title,16)
 	l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_color_override("font_color",Color("7b4fd0"))
 	upgrade_list.add_child(l)
+	return l
 
 func show_upgrades(team: bool):
 	clear_cards()
@@ -894,12 +905,17 @@ func show_upgrades(team: bool):
 	if not team:
 		section("NEW BRANCH • Moon Stars raise every potion price for good")
 		shop_card(room.textures["dream_t3"],"","",func(): ask_branch(),"branch")
+		talent_section=section("")
+		for tl in model.cfg.talents: shop_card(room.textures[TALENT_ICONS[tl.id]],"","",buy_talent.bind(tl.id),"tl_"+tl.id)
 		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
 		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 		section("ONE-TIME UPGRADES")
 	for p in model.cfg.purchases:
 		if (p.id in ["gardener","brewer","cashier"]) != team: continue
 		shop_card(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),p.name,p.benefit,buy.bind(p.id),p.id)
+	if team:
+		section("TRAIN YOUR TEAM • levels 10, 25, 50, 75 and 100 double each helper")
+		for id in model.WORKERS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 	open_cards()
 
 func clear_cards():
@@ -1022,15 +1038,28 @@ func refresh():
 			st.corner_radius_top_right=24
 			for state in ["normal","hover","pressed"]:b.add_theme_stylebox_override(state,st)
 			b.modulate=Color.WHITE if active else Color(1,1,1,0.75)
-	for sid in model.STATIONS:
+	for sid in model.STATIONS+model.WORKERS:
 		if purchase_buttons.has("lv_"+sid):
 			var b: Button=purchase_buttons["lv_"+sid]
 			var top:bool=model.level(sid)>=int(model.cfg.max_level)
-			b.text="Max" if top else model.short(model.level_cost(sid))
-			b.icon=null if top else coin_tex
-			b.disabled=top or s.coins<model.level_cost(sid)
-			purchase_labels["lv_"+sid][0].text="%s · Lv. %d" % [station_name(sid) if sid!="garden" else "Garden beds",model.level(sid)]
+			var hired:bool=not sid in model.WORKERS or model.owned(sid)
+			b.text="Max" if top else model.short(model.level_cost(sid)) if hired else "Hire first"
+			b.icon=coin_tex if hired and not top else null
+			b.disabled=top or not hired or s.coins<model.level_cost(sid)
+			purchase_cards["lv_"+sid].modulate=Color.WHITE if hired else Color(1,1,1,.62)
+			purchase_labels["lv_"+sid][0].text="%s · Lv. %d" % [station_name(sid),model.level(sid)]
 			purchase_labels["lv_"+sid][1].text=station_detail(sid)+"\n"+station_milestone(sid)
+	if is_instance_valid(talent_section): talent_section.text="MOON STAR TALENTS • ★ %d of %d to spend • spent stars still raise prices" % [model.stars_free(),int(s.prestige.stars)]
+	for tl in model.cfg.talents:
+		var key:String="tl_"+tl.id
+		if not purchase_buttons.has(key): continue
+		var b:Button=purchase_buttons[key]
+		var rank:int=model.talent(tl.id)
+		var top:bool=rank>=int(tl.ranks)
+		purchase_labels[key][0].text="%s · %d/%d" % [tl.name,rank,int(tl.ranks)]
+		purchase_labels[key][1].text=tl.benefit
+		b.text="Max" if top else "★ %d" % model.talent_cost(tl.id)
+		b.disabled=top or model.stars_free()<model.talent_cost(tl.id)
 	for p in model.cfg.purchases:
 		if purchase_buttons.has(p.id):
 			var b: Button=purchase_buttons[p.id]

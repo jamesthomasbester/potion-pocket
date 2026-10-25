@@ -34,6 +34,8 @@ const ACHIEVEMENTS := [
 const VERSION := 4
 const MAX_PLOTS := 6
 const STATIONS := ["garden","cauldron","counter","shelf"]
+# Hired helpers level like stations: Pip speeds growth, Momo brewing, Sol earns tips.
+const WORKERS := ["gardener","brewer","cashier"]
 
 func _init():
 	fresh()
@@ -45,7 +47,7 @@ func fresh():
 	dirty = true
 
 func fresh_state() -> Dictionary:
-	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{},"prestige":{"stars":0,"branches":0,"run_earned":0}}
+	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{},"prestige":{"stars":0,"branches":0,"run_earned":0,"talents":{}}}
 	state.stock[0] = int(cfg.starting_stock)
 	return state
 
@@ -57,7 +59,7 @@ func zeros(n: int) -> Array:
 
 func default_levels() -> Dictionary:
 	var levels := {}
-	for id in STATIONS: levels[id] = 1
+	for id in STATIONS + WORKERS: levels[id] = 1
 	return levels
 
 func default_decor() -> Dictionary:
@@ -88,6 +90,10 @@ func migrate(v: Variant) -> Variant:
 		var defaults := fresh_state()
 		for key in defaults:
 			if not v.has(key): v[key] = defaults[key]
+		if v.prestige is Dictionary and not v.prestige.has("talents"): v.prestige.talents = {}
+		if v.levels is Dictionary:
+			for id in WORKERS:
+				if not v.levels.has(id): v.levels[id] = 1
 	return v
 
 func decor_unlocked(kind: String, variant: int) -> bool:
@@ -135,12 +141,12 @@ func station_mult(id: String) -> float:
 	return mult
 
 func level_cost(id: String) -> int:
-	for st in cfg.stations:
+	for st in cfg.stations + cfg.workers:
 		if st.id == id: return int(round(st.cost * pow(cfg.level_growth, level(id) - 1)))
 	return 0
 
 func level_up(id: String) -> bool:
-	if not id in STATIONS or level(id) >= int(cfg.max_level): return false
+	if not (id in STATIONS or id in WORKERS and owned(id)) or level(id) >= int(cfg.max_level): return false
 	var cost := level_cost(id)
 	if s.coins < cost: return false
 	s.coins -= cost
@@ -167,7 +173,7 @@ func queue_capacity() -> int:
 
 func arrival_time() -> float:
 	if _fast: return _d.arrival_time
-	return float(cfg.arrival_seconds) / station_mult("counter")
+	return float(cfg.arrival_seconds) / station_mult("counter") / talent_mult("street")
 
 func service_time() -> float:
 	if _fast: return _d.service_time
@@ -285,7 +291,7 @@ func visitor_potion() -> int:
 func visitor_pay() -> int:
 	var r := visitor_potion()
 	if r < 0: r = int(s.visitor.get("recipe", 0))
-	return price(r) * int(cfg.visitors.vip_pay if s.visitor.get("kind") == "vip" else cfg.visitors.request_pay)
+	return int(price(r) * int(cfg.visitors.vip_pay if s.visitor.get("kind") == "vip" else cfg.visitors.request_pay) * talent_mult("patrons"))
 
 func serve_visitor() -> bool:
 	var r := visitor_potion()
@@ -324,17 +330,17 @@ func capacity() -> int:
 
 func grow_time(crop: int) -> float:
 	if _fast: return _d.grow_time[crop]
-	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden")
+	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden") / station_mult("gardener") / talent_mult("roots")
 
 func brew_time(recipe: int) -> float:
 	if _fast: return _d.brew_time[recipe]
-	return float(cfg.recipes[recipe].brew) / (1.5 if owned("brew") else 1.0) / station_mult("cauldron")
+	return float(cfg.recipes[recipe].brew) / (1.5 if owned("brew") else 1.0) / station_mult("cauldron") / station_mult("brewer") / talent_mult("bubbles")
 
 func price(recipe: int) -> int:
 	if _fast: return _d.price[recipe]
 	var shelf: float = (1.0 + cfg.shelf_price * (level("shelf") - 1)) * pow(2.0, milestones_reached("shelf"))
 	var stars := 1.0 + STAR_BONUS * int(s.prestige.stars)
-	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf * stars))
+	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf * stars * station_mult("cashier")))
 
 func harvest() -> bool:
 	var did := false
@@ -576,6 +582,39 @@ func pending_stars() -> int:
 func can_prestige() -> bool:
 	return stat("top_level") >= PRESTIGE_LEVEL and pending_stars() >= 1
 
+# Moon Star talents: rank n costs n stars, and spending never lowers the
+# star price bonus, which counts every star earned.
+func talent_info(id: String) -> Dictionary:
+	for t in cfg.talents:
+		if t.id == id: return t
+	return {}
+
+func talent(id: String) -> int:
+	return int(s.prestige.get("talents", {}).get(id, 0))
+
+func talent_mult(id: String) -> float:
+	return 1.0 + float(talent_info(id).step) * talent(id)
+
+func talent_cost(id: String) -> int:
+	return talent(id) + 1
+
+func stars_spent() -> int:
+	var n := 0
+	for id in s.prestige.get("talents", {}): n += talent(id) * (talent(id) + 1) / 2
+	return n
+
+func stars_free() -> int:
+	return int(s.prestige.stars) - stars_spent()
+
+func buy_talent(id: String) -> bool:
+	var t := talent_info(id)
+	if t.is_empty() or talent(id) >= int(t.ranks) or stars_free() < talent_cost(id): return false
+	s.prestige.talents[id] = talent(id) + 1
+	event("talent_%s_%d" % [id, talent(id)])
+	feedback.append("upgrade")
+	dirty = true
+	return true
+
 func branch_name() -> String:
 	return BRANCHES[int(s.prestige.branches) % BRANCHES.size()]
 
@@ -590,6 +629,7 @@ func open_branch() -> bool:
 	s.prestige.stars = int(s.prestige.stars) + stars
 	s.prestige.branches = int(s.prestige.branches) + 1
 	s.prestige.run_earned = 0
+	for i in range(talent("team")): s.owned[WORKERS[i]] = true
 	_mult_cache.clear()
 	update_tutorial()
 	event("open_branch_%d" % int(s.prestige.branches))
@@ -751,9 +791,10 @@ func simulate(seconds: float):
 	feedback.clear()
 
 func offline_cap() -> float:
-	if owned("offline_8"): return 28800.0
-	if owned("offline_4"): return 14400.0
-	return float(cfg.offline_cap)
+	var extra := float(talent_info("night").step) * talent("night")
+	if owned("offline_8"): return 28800.0 + extra
+	if owned("offline_4"): return 14400.0 + extra
+	return float(cfg.offline_cap) + extra
 
 func offline(now: float) -> Dictionary:
 	var job := begin_offline(now)
@@ -813,6 +854,14 @@ func valid(v: Variant) -> bool:
 	for key in ["stars","branches","run_earned"]:
 		var n = v.prestige.get(key)
 		if not (n is float or n is int) or n < 0 or n != floor(n): return false
+	if not v.prestige.get("talents") is Dictionary: return false
+	var spent := 0
+	for id in v.prestige.talents:
+		var rank = v.prestige.talents[id]
+		var info := talent_info(str(id))
+		if info.is_empty() or not (rank is float or rank is int) or rank != floor(rank) or rank < 0 or rank > int(info.ranks): return false
+		spent += int(rank) * (int(rank) + 1) / 2
+	if spent > int(v.prestige.stars): return false
 	if v.daily.has("quests"):
 		if not v.daily.quests is Array: return false
 		for q in v.daily.quests:
@@ -832,6 +881,10 @@ func valid(v: Variant) -> bool:
 		if not v.decor.get("manual_"+kind) is bool: return false
 	for id in STATIONS:
 		var n = v.levels.get(id)
+		if not (n is float or n is int) or n != floor(n) or n < 1 or n > cfg.max_level: return false
+	# Saves from before worker levels have none; level() reads those as 1.
+	for id in WORKERS:
+		var n = v.levels.get(id, 1)
 		if not (n is float or n is int) or n != floor(n) or n < 1 or n > cfg.max_level: return false
 	if v.ready and v.pot == -1: return false
 	if not v.plots is Array or v.plots.size() < 2 or v.plots.size() > MAX_PLOTS: return false

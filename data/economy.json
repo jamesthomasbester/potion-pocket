@@ -264,5 +264,66 @@
     "request_pay": 3,
     "vip_pay": 10,
     "vip_share": 0.3
-  }
+  },
+  "workers": [
+    {
+      "id": "gardener",
+      "name": "Pip • gardener",
+      "cost": 100
+    },
+    {
+      "id": "brewer",
+      "name": "Momo • brewer",
+      "cost": 140
+    },
+    {
+      "id": "cashier",
+      "name": "Sol • cashier",
+      "cost": 200
+    }
+  ],
+  "talents": [
+    {
+      "id": "roots",
+      "name": "Quick roots",
+      "benefit": "Beds grow 10% faster per rank",
+      "ranks": 5,
+      "step": 0.1
+    },
+    {
+      "id": "bubbles",
+      "name": "Bubbling cauldron",
+      "benefit": "Brewing 10% faster per rank",
+      "ranks": 5,
+      "step": 0.1
+    },
+    {
+      "id": "street",
+      "name": "Busy street",
+      "benefit": "Customers arrive 10% sooner per rank",
+      "ranks": 5,
+      "step": 0.1
+    },
+    {
+      "id": "patrons",
+      "name": "Generous patrons",
+      "benefit": "Special visitors pay 50% more per rank",
+      "ranks": 3,
+      "step": 0.5
+    },
+    {
+      "id": "night",
+      "name": "Night shift",
+      "benefit": "Your team works 1 h longer offline per rank",
+      "ranks": 4,
+      "step": 3600
+    },
+    {
+      "id": "team",
+      "name": "Loyal team",
+      "benefit": "New branches open with Pip, then Momo, then Sol already hired",
+      "ranks": 3,
+      "step": 1
+    }
+  ]
 }
