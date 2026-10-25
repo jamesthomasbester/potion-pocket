@@ -15,8 +15,6 @@ PASS purchase charges once: brewer
 PASS duplicate purchase rejected: brewer
 PASS purchase charges once: cashier
 PASS duplicate purchase rejected: cashier
-PASS purchase charges once: recipe
-PASS duplicate purchase rejected: recipe
 PASS purchase charges once: grow
 PASS duplicate purchase rejected: grow
 PASS purchase charges once: brew
@@ -27,6 +25,10 @@ PASS purchase charges once: capacity
 PASS duplicate purchase rejected: capacity
 PASS purchase charges once: renovation
 PASS duplicate purchase rejected: renovation
+PASS purchase charges once: offline_4
+PASS duplicate purchase rejected: offline_4
+PASS purchase charges once: offline_8
+PASS duplicate purchase rejected: offline_8
 PASS displayed upgrade effects
 PASS dream consumes moonflower only
 PASS dream produces correct bottle
@@ -47,6 +49,8 @@ PASS online/offline same rules: arrival
 PASS online/offline same rules: service
 PASS online/offline same rules: serving
 PASS online/offline same rules: tutorial
+PASS online/offline same rules: visitor
+PASS online/offline same rules: visitor_timer
 PASS same interval cannot credit twice
 PASS negative clock preserves high-water mark
 PASS clock recovery cannot replay elapsed time
@@ -94,4 +98,42 @@ PASS invalid decoration index rejected
 PASS decorated game saves
 PASS floor and wall choices survive load
 PASS version 2 save migrates renovation appearance
-RESULT 94 checks / 0 failures
+PASS inventories cover every crop and potion
+PASS recipes unlock in book order
+PASS unlocking Dreamdrop charges, keeps the old key and selects it
+PASS Calm Tea unlocks next
+PASS Calm Tea consumes one peppermint and one moonflower
+PASS two-herb recipe waits for the missing herb
+PASS beds split between the recipe's two crops
+PASS two beds rotate through all three Aurora crops
+PASS customers buy the most valuable potion first
+PASS third plot costs 150
+PASS four plots can be bought, up to six
+PASS six-plot save validates
+PASS seven plots rejected
+PASS version 3 save migrates to the Recipe Book
+PASS no special visitors before Dreamdrop or Sol
+PASS request waits for its exact potion
+PASS request pays three times the potion price
+PASS VIP takes the best potion for ten times its price
+PASS unserved visitors leave when their wait ends
+PASS visitors arrive on their own over time
+PASS unknown visitor kind rejected
+PASS early version 4 saves gain visitor defaults
+PASS report counts harvests, brews and sales and flags the cap
+PASS report is kept for the welcome screen
+PASS lantern raises the offline cap to four hours
+PASS moon clock covers eight hours
+PASS three daily goals, created once per day
+PASS special-visitor goals wait until visitors exist
+PASS unfinished goal cannot be claimed
+PASS finished goal pays its reward once
+PASS login gift claims once per day
+PASS consecutive day extends the streak
+PASS missed day restarts the streak
+PASS seven consecutive days reach day seven
+PASS streak cycles after day seven
+PASS achievements unlock from real progress
+PASS lifetime stats count sales
+PASS save with goals, stats and achievements validates
+RESULT 136 checks / 0 failures

@@ -6,6 +6,7 @@ Run after replacing any source sheet in art/source/animation-atlases.
 """
 from pathlib import Path
 from PIL import Image, ImageChops, ImageFilter
+from collections import deque
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "art/source/animation-atlases"
@@ -16,7 +17,7 @@ CELL = 256
 
 def make(name: str) -> None:
     im = Image.open(SOURCE / f"{name}.png").convert("RGBA")
-    pieces = isolate(im)
+    pieces = isolate(im, name)
     # One scale per character prevents size jitter between actions/directions.
     largest_w = max(p.width for p in pieces)
     largest_h = max(p.height for p in pieces)
@@ -34,63 +35,73 @@ def make(name: str) -> None:
     print(f"{name}: 16 poses, {largest_w}x{largest_h} source max, scale {scale:.3f}")
 
 
-def isolate(im: Image.Image) -> list[Image.Image]:
-    """Prefer whole silhouettes; two sheets have deliberately touching poses."""
+def isolate(im: Image.Image, name: str) -> list[Image.Image]:
+    """Separate touching poses by growing eroded silhouette seeds."""
     small = im.getchannel("A")
     small.thumbnail((500, 400), Image.Resampling.NEAREST)
     w, h = small.size
-    px = small.load()
-    seen: set[tuple[int, int]] = set()
     components = []
-    for y in range(h):
-        for x in range(w):
-            if (x, y) in seen or px[x, y] < 100:
-                continue
-            stack = [(x, y)]
-            seen.add((x, y))
-            points = []
-            while stack:
-                a, b = stack.pop()
-                points.append((a, b))
-                for u, v in ((a-1, b), (a+1, b), (a, b-1), (a, b+1)):
-                    if 0 <= u < w and 0 <= v < h and (u, v) not in seen and px[u, v] >= 100:
-                        seen.add((u, v))
-                        stack.append((u, v))
-            if len(points) > 60:
-                components.append(points)
-
-    if len(components) == 16:
-        components.sort(key=lambda ps: sum(y for _, y in ps) / len(ps))
-        ordered = []
-        for row in range(4):
-            group = components[row*4:row*4+4]
-            ordered += sorted(group, key=lambda ps: sum(x for x, _ in ps) / len(ps))
-        parts = []
-        for points in ordered:
-            mask = Image.new("L", small.size)
-            pix = mask.load()
-            for x, y in points:
-                pix[x, y] = 255
-            mask = mask.resize(im.size, Image.Resampling.NEAREST).filter(ImageFilter.MaxFilter(11))
-            part = im.copy()
-            part.putalpha(ImageChops.multiply(im.getchannel("A"), mask))
-            box = part.getchannel("A").getbbox()
-            parts.append(part.crop(box))
-        return parts
-
-    # The brewer and blue-coat customer poses touch across some row boundaries.
-    # Their underlying atlas is regular, so a cell crop keeps every frame isolated.
-    parts = []
+    erosion = 0
+    for size in (0, 3, 5, 7, 9, 11):
+        core = small.point(lambda a: 255 if a > 100 else 0)
+        if size:
+            core = core.filter(ImageFilter.MinFilter(size))
+        px = core.load()
+        seen: set[tuple[int, int]] = set()
+        components = []
+        for y in range(h):
+            for x in range(w):
+                if (x, y) in seen or not px[x, y]:
+                    continue
+                stack = [(x, y)]
+                seen.add((x, y))
+                points = []
+                while stack:
+                    a, b = stack.pop()
+                    points.append((a, b))
+                    for u, v in ((a-1, b), (a+1, b), (a, b-1), (a, b+1)):
+                        if 0 <= u < w and 0 <= v < h and (u, v) not in seen and px[u, v]:
+                            seen.add((u, v))
+                            stack.append((u, v))
+                if len(points) > 60:
+                    components.append(points)
+        if len(components) == 16:
+            erosion = size
+            break
+    if len(components) != 16:
+        raise ValueError(f"{name}: found {len(components)} silhouettes, expected 16")
+    components.sort(key=lambda ps: sum(y for _, y in ps) / len(ps))
+    ordered = []
     for row in range(4):
-        for col in range(4):
-            bounds = (round(col*im.width/4), round(row*im.height/4),
-                      round((col+1)*im.width/4), round((row+1)*im.height/4))
-            part = im.crop(bounds)
-            opaque = part.getchannel("A").point(lambda a: 255 if a > 18 else 0)
-            box = opaque.getbbox()
-            if box is None:
-                raise ValueError(f"missing frame {row},{col}")
-            parts.append(part.crop(box))
+        ordered += sorted(components[row*4:row*4+4], key=lambda ps: sum(x for x, _ in ps) / len(ps))
+
+    # Flood the original alpha from all sixteen intact cores at once. This
+    # divides narrow contacts without cutting off a shoe or a hat brim.
+    owner = [-1] * (w*h)
+    queue = deque()
+    for label, points in enumerate(ordered):
+        for x, y in points:
+            idx = y*w+x
+            owner[idx] = label
+            queue.append((x, y))
+    alpha = small.load()
+    while queue:
+        x, y = queue.popleft()
+        label = owner[y*w+x]
+        for u, v in ((x-1,y),(x+1,y),(x,y-1),(x,y+1)):
+            if 0 <= u < w and 0 <= v < h and owner[v*w+u] == -1 and alpha[u,v] >= 18:
+                owner[v*w+u] = label
+                queue.append((u,v))
+    parts = []
+    for label in range(16):
+        mask = Image.new("L", (w,h))
+        mask.putdata([255 if n == label else 0 for n in owner])
+        mask = mask.resize(im.size, Image.Resampling.NEAREST).filter(ImageFilter.MaxFilter(3))
+        part = im.copy()
+        part.putalpha(ImageChops.multiply(im.getchannel("A"), mask))
+        box = part.getchannel("A").getbbox()
+        parts.append(part.crop(box))
+    print(f"  {name}: erosion {erosion}, all 16 silhouettes separated")
     return parts
 
 

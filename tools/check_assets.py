@@ -17,4 +17,13 @@ for family in families:
 for kind in ['floor','wall']:
  for variant in range(3):
   ElementTree.parse(root/'game/art/decor'/f'{kind}_{variant}.svg')
-print('ASSETS 30 transparent sprites and 6 vector finishes verified')
+for name in ['owner','brewer','cashier','gardener','customer0','customer1','departing']:
+ path=root/'game/art/animations'/f'{name}.png'
+ with Image.open(path) as image:
+  assert image.mode=='RGBA' and image.size==(1024,1024),name
+  for row in range(4):
+   for col in range(4):
+    frame=image.crop((col*256,row*256,(col+1)*256,(row+1)*256)).getchannel('A')
+    assert frame.getbbox() is not None and sum(frame.histogram()[200:])>400,name+f' {row},{col}'
+    assert frame.getpixel((0,0))==0 and frame.getpixel((255,0))==0,name+f' edge {row},{col}'
+print('ASSETS 30 transparent variants, 6 vector finishes, 112 animation frames verified')

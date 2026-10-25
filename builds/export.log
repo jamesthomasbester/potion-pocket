@@ -16,60 +16,36 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
 [92m[ DONE ][39m [1mupdate_scripts_classes[22m
 [0m
-[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (15 steps)[39m[0m
-[   0% ] [90m[1m_update_scan_actions[22m | asset-catalog.png[39m[0m
-[   6% ] [90m[1m_update_scan_actions[22m | automated-shop.png[39m[0m
-[  12% ] [90m[1m_update_scan_actions[22m | decor-menu.png[39m[0m
-[  18% ] [90m[1m_update_scan_actions[22m | five-minute-shop.png[39m[0m
-[  25% ] [90m[1m_update_scan_actions[22m | garden-tier-1.png[39m[0m
-[  31% ] [90m[1m_update_scan_actions[22m | garden-tier-2.png[39m[0m
-[  37% ] [90m[1m_update_scan_actions[22m | garden-tier-3.png[39m[0m
-[  43% ] [90m[1m_update_scan_actions[22m | garden.png[39m[0m
-[  50% ] [90m[1m_update_scan_actions[22m | layout-960.png[39m[0m
-[  56% ] [90m[1m_update_scan_actions[22m | layout-1200.png[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (7 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | automated-shop.png[39m[0m
+[  12% ] [90m[1m_update_scan_actions[22m | five-minute-shop.png[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | garden.png[39m[0m
+[  37% ] [90m[1m_update_scan_actions[22m | layout-960.png[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | layout-971.png[39m[0m
 [  62% ] [90m[1m_update_scan_actions[22m | renovated-shop.png[39m[0m
-[  68% ] [90m[1m_update_scan_actions[22m | shop-tier-1.png[39m[0m
-[  75% ] [90m[1m_update_scan_actions[22m | shop-tier-2.png[39m[0m
-[  81% ] [90m[1m_update_scan_actions[22m | shop-tier-3.png[39m[0m
-[  87% ] [90m[1m_update_scan_actions[22m | starting-shop.png[39m[0m
+[  75% ] [90m[1m_update_scan_actions[22m | starting-shop.png[39m[0m
 [92m[ DONE ][39m [1m_update_scan_actions[22m
 [0m
-[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (15 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
 [   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[   6% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  12% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  18% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  25% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  31% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  37% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  43% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  50% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  56% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  62% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  68% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  75% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  81% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  87% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
-[   0% ] [90m[1mreimport[22m | asset-catalog.png[39m[0m
-[   6% ] [90m[1mreimport[22m | automated-shop.png[39m[0m
-[  12% ] [90m[1mreimport[22m | decor-menu.png[39m[0m
-[  18% ] [90m[1mreimport[22m | five-minute-shop.png[39m[0m
-[  25% ] [90m[1mreimport[22m | garden-tier-1.png[39m[0m
-[  31% ] [90m[1mreimport[22m | garden-tier-2.png[39m[0m
-[  37% ] [90m[1mreimport[22m | garden-tier-3.png[39m[0m
-[  43% ] [90m[1mreimport[22m | garden.png[39m[0m
-[  50% ] [90m[1mreimport[22m | layout-960.png[39m[0m
-[  56% ] [90m[1mreimport[22m | layout-1200.png[39m[0m
+[   0% ] [90m[1mreimport[22m | automated-shop.png[39m[0m
+[  12% ] [90m[1mreimport[22m | five-minute-shop.png[39m[0m
+[  25% ] [90m[1mreimport[22m | garden.png[39m[0m
+[  37% ] [90m[1mreimport[22m | layout-960.png[39m[0m
+[  50% ] [90m[1mreimport[22m | layout-971.png[39m[0m
 [  62% ] [90m[1mreimport[22m | renovated-shop.png[39m[0m
-[  68% ] [90m[1mreimport[22m | shop-tier-1.png[39m[0m
-[  75% ] [90m[1mreimport[22m | shop-tier-2.png[39m[0m
-[  81% ] [90m[1mreimport[22m | shop-tier-3.png[39m[0m
-[  87% ] [90m[1mreimport[22m | starting-shop.png[39m[0m
-[  93% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+[  75% ] [90m[1mreimport[22m | starting-shop.png[39m[0m
+[  87% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
 [92m[ DONE ][39m [1mreimport[22m
 [0m
-[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (15 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
 [   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
 [92m[ DONE ][39m [1mreimport[22m
 [0m
@@ -189,4 +165,3 @@ Signed
 [  99% ] [90m[1mexport[22m | Verifying APK...[39m[0m
 [92m[ DONE ][39m [1mexport[22m
 [0m
-cannot connect to daemon at tcp:5037: Connection refused

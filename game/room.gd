@@ -8,7 +8,10 @@ var pulse := 0.0
 var effect := ""
 var customers: Array = []
 var departures: Array = []
+var next_customer := 0
 var textures := {}
+var character_sheets := {}
+var actor_timers := {}
 var particles: Array = []
 var floaters: Array = []
 var bounce := {}
@@ -52,6 +55,9 @@ func _ready():
 		for tier in range(1,4):
 			var name="%s_t%d" % [family,tier]
 			textures[name]=load("res://game/art/"+name+".png")
+	for name in ["owner","brewer","cashier","gardener","customer0","customer1","departing"]:
+		var path="res://game/art/animations/"+name+".png"
+		if ResourceLoader.exists(path): character_sheets[name]=load(path)
 	coin_tex=load("res://game/art/coin.svg")
 	# Fixed grass tufts so the lawn does not shimmer between frames.
 	var rng:=RandomNumberGenerator.new()
@@ -62,11 +68,14 @@ func _process(dt):
 	clock+=dt
 	pulse=maxf(0,pulse-dt)
 	if model:
-		while customers.size()<int(model.s.queue): customers.append({"g":DOOR+Vector2(0,2.2),"path":[DOOR-Vector2(0,0.8)],"variant":customers.size()%2})
+		while customers.size()<int(model.s.queue):
+			customers.append({"g":DOOR+Vector2(0,2.2),"path":[DOOR-Vector2(0,0.8)],"variant":next_customer%3,"dir":2,"moving":true,"hold":0.0})
+			next_customer+=1
 		while customers.size()>int(model.s.queue): leave_customer()
 		for i in range(customers.size()): walk(customers[i],QUEUE[mini(i,QUEUE.size()-1)],dt)
 		for c in departures: walk(c,c.path.back() if not c.path.is_empty() else c.g,dt)
 		departures=departures.filter(func(c):return not c.path.is_empty())
+	for key in actor_timers.keys(): actor_timers[key]=maxf(0,float(actor_timers[key])-dt)
 	for k in bounce.keys(): bounce[k]=maxf(0,bounce[k]-dt*2.6)
 	for q in particles:
 		q.p+=q.v*dt
@@ -84,6 +93,11 @@ func _process(dt):
 
 # Customers follow waypoints in grid space, then settle on their queue spot.
 func walk(c:Dictionary,spot:Vector2,dt:float):
+	if float(c.get("hold",0.0))>0:
+		c.hold=maxf(0,float(c.hold)-dt)
+		c.moving=false
+		return
+	var from=iso(c.g.x,c.g.y)
 	var step:=dt*2.4
 	while step>0:
 		var target:Vector2=c.path[0] if not c.path.is_empty() else spot
@@ -91,16 +105,25 @@ func walk(c:Dictionary,spot:Vector2,dt:float):
 		if d<=step:
 			c.g=target
 			step-=d
-			if c.path.is_empty(): return
+			if c.path.is_empty(): break
 			c.path.pop_front()
 		else:
 			c.g=c.g.move_toward(target,step)
-			return
+			break
+	var delta=iso(c.g.x,c.g.y)-from
+	c.moving=delta.length()>0.1
+	if c.moving: c.dir=direction(delta)
+
+func direction(delta:Vector2) -> int:
+	if delta.y>=0: return 0 if delta.x<0 else 1
+	return 2 if delta.x<0 else 3
 
 func leave_customer():
 	if customers.is_empty(): return
 	var c=customers.pop_front()
 	c.path=[DOOR-Vector2(0,0.8),DOOR+Vector2(0,2.6)]
+	c.hold=.58
+	c.moving=false
 	departures.append(c)
 
 func spray(at:Vector2,count:int,kind:String,color:Color,speed:=160.0,up:=-120.0,g:=320.0,life:=0.9):
@@ -154,19 +177,23 @@ func badge(p:Vector2,id:String):
 func burst(kind:String):
 	match kind:
 		"harvest":
+			actor_timers["gardener" if model.owned("gardener") else "owner"]=.7
 			for i in range(model.s.plots.size() if garden else 2):
 				spray(bed_center(i)-Vector2(0,30),9,"leaf",Color("8fd16a"),150,-180,300,1.0)
 				bounce["bed"+str(i)]=1.0
 		"brew":
+			actor_timers["brewer" if model.owned("brewer") else "owner"]=.55
 			if not garden:
 				spray(iso(1.7,2.8)-Vector2(0,105),12,"dot",Color("b58af1"),120,-150,380,.8)
 				bounce["cauldron"]=1.0
 		"stock":
+			actor_timers["brewer" if model.owned("brewer") else "owner"]=.75
 			if not garden:
 				spray(iso(7,1)-Vector2(0,70),8,"star",Color("fff1af"),110,-60,60,.8)
 				bounce["shelf"]=1.0
 				bounce["cauldron"]=.6
 		"sale","dream_sale":
+			actor_timers["cashier" if model.owned("cashier") else "owner"]=.5
 			var at=iso(9.8,5)-Vector2(30,80) if not garden else Vector2(440,60)
 			var amount=model.price(1 if kind=="dream_sale" else 0)
 			# Fast checkouts merge into one rising total instead of a pile of labels.
@@ -226,9 +253,38 @@ func sprite_bounce(name:String,p:Vector2,w:float,key:String):
 	var h=w*tex.get_height()/tex.get_width()*(1-squash)
 	draw_texture_rect(tex,Rect2(p-Vector2(sw/2,h),Vector2(sw,h)),false)
 
-func person(name:String,p:Vector2,w:=70.0):
-	oval(p-Vector2(0,3),Vector2(w*.34,9),Color(0.35,0.22,0.16,.16))
-	sprite(name,p-Vector2(0,absf(sin(clock*3+p.x))*2.0),w)
+func person(name:String,p:Vector2,w:=70.0,dir:=0,action:="idle",phase:=0.0):
+	oval(p-Vector2(0,3),Vector2(w*.48,9),Color(0.35,0.22,0.16,.16))
+	if not character_sheets.has(name):
+		sprite(name,p,w)
+		return
+	var row=pose_row(action,phase)
+	var bob:=absf(sin(clock*9+phase))*2.0 if action=="walk" else sin(clock*5+phase)*1.5 if action=="work" else 0.0
+	var tex:Texture2D=character_sheets[name]
+	var sw:=w*1.8*(1.02 if action=="work" and row==3 else 1.0)
+	var sh:=w*1.36*1.8
+	var source=Rect2(Vector2(dir*256,row*256),Vector2(256,256))
+	draw_texture_rect_region(tex,Rect2(p-Vector2(sw/2,sh+bob),Vector2(sw,sh)),source)
+
+func pose_row(action:String,phase:=0.0) -> int:
+	match action:
+		"walk": return 1 if int(floor(clock*6.5+phase))%2==0 else 0
+		"pickup": return 2
+		"work": return 3 if int(floor(clock*3.4+phase))%2==0 else 0
+	return 0
+
+func actor_action(name:String,working:=false) -> String:
+	if float(actor_timers.get(name,0.0))>0: return "pickup"
+	return "work" if working else "idle"
+
+func customer_name(c:Dictionary) -> String:
+	return ["customer0","customer1","departing"][int(c.variant)%3]
+
+func customer_action(c:Dictionary) -> String:
+	if float(c.get("hold",0.0))>0: return "pickup"
+	if bool(c.get("moving",false)): return "walk"
+	if model.s.serving and not customers.is_empty() and c==customers[0]: return "work"
+	return "idle"
 
 func text(p:Vector2,s:String,n:=18,c:=INK):
 	draw_string(font,p,s,HORIZONTAL_ALIGNMENT_LEFT,-1,n,c)
@@ -456,11 +512,11 @@ func draw_garden():
 		pill(c+Vector2(-40,26),"Ready" if ready else "Growing",plot.progress/model.grow_time(int(plot.crop)),96,Color("5fbf6a"))
 		if i==0:
 			if hired:
-				person("gardener",c+Vector2(58,-8),80)
+				person("gardener",c+Vector2(58,-8),80,0,actor_action("gardener",not ready),.4)
 				bubble(c+Vector2(34,-128),"Auto-harvest ON")
 			else:
-				person("owner",giso(.1,2.6),88)
-	if hired: person("owner",giso(.9,.9),80)
+				person("owner",giso(.1,2.6),88,1,actor_action("owner",not ready),.7)
+	if hired: person("owner",giso(.9,.9),80,1,actor_action("owner"))
 	badge(bed_center(0)+Vector2(70,40),"garden")
 	sprite(Art.name_for("bush",model.level("garden")),Vector2(520,640),140)
 	picket_fence(giso(6.6,6),giso(6.6,13),8)
@@ -522,7 +578,7 @@ func draw_visitor():
 	var v:Dictionary=model.s.visitor
 	var p=iso(VISITOR.x,VISITOR.y)
 	var vip:bool=v.kind=="vip"
-	person("customer1" if vip else "customer0",p,72)
+	person("customer1" if vip else "customer0",p,72,0,"work" if model.visitor_potion()>=0 else "idle")
 	if vip:
 		var c=p-Vector2(0,104)
 		poly([c+Vector2(-15,8),c+Vector2(15,8),c+Vector2(18,-10),c+Vector2(8,-2),c+Vector2(0,-14),c+Vector2(-8,-2),c+Vector2(-18,-10)],Color("f2c94c"),true,Color("b9822a"))
@@ -593,8 +649,8 @@ func draw_shop():
 	shelf_bottles(iso(7,1),150)
 	badge(iso(7,1)+Vector2(-48,-24),"shelf")
 	var cauldron=iso(1.7,2.8)
-	if model.owned("brewer"): person("brewer",iso(2.95,2.05),78)
-	elif model.s.pot!=-1: person("owner",iso(2.95,2.05),83)
+	if model.owned("brewer"): person("brewer",iso(2.95,2.05),78,0,actor_action("brewer",model.s.pot!=-1),.3)
+	elif model.s.pot!=-1: person("owner",iso(2.95,2.05),83,0,actor_action("owner",not model.s.ready),.3)
 	if model.s.pot!=-1:
 		oval(cauldron-Vector2(0,24),Vector2(66,28),Color("b38bff"))
 		oval(cauldron-Vector2(0,24),Vector2(61,24),Color("fff6ff"))
@@ -609,9 +665,13 @@ func draw_shop():
 	# Ingredient crates in a tidy row along U.
 	sprite("leaves",iso(1.6,5),92)
 	sprite("flowers",iso(3.1,5),92)
-	if model.owned("brewer") or model.s.pot==-1: person("owner",iso(5.6+sin(clock*.6)*.35,4),90)
+	if model.owned("brewer") or model.s.pot==-1:
+		var u=5.6+sin(clock*.6)*.55
+		var v=4.0+cos(clock*.6)*.35
+		var travel=U*(cos(clock*.6)*.55)-V*(sin(clock*.6)*.35)
+		person("owner",iso(u,v),90,direction(travel),"walk" if float(actor_timers.get("owner",0.0))<=0 else "pickup",.7)
 	draw_visitor()
-	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70)
+	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70,0,actor_action("cashier",model.s.serving),.8)
 	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter")
 	badge(iso(9.8,5)-Vector2(-20,36),"counter")
 	var inside=[]
@@ -620,7 +680,7 @@ func draw_shop():
 		if c.g.y<ROOM_V: inside.append(c)
 		else: outside.append(c)
 	inside.sort_custom(func(a,b):return iso(a.g.x,a.g.y).y<iso(b.g.x,b.g.y).y)
-	for c in inside: person("departing" if departures.has(c) else "customer"+str(c.variant),iso(c.g.x,c.g.y),70)
+	for c in inside: person(customer_name(c),iso(c.g.x,c.g.y),70,int(c.get("dir",2)),customer_action(c),float(c.g.x)*.3)
 	# Front wall with an archway, then the street side.
 	wall(iso(0,ROOM_V),iso(DOOR_L,ROOM_V),91,face,low,trim,wall_style.motif)
 	wall(iso(DOOR_R,ROOM_V),iso(ROOM_U,ROOM_V),91,face,low,trim,wall_style.motif)
@@ -631,7 +691,7 @@ func draw_shop():
 		draw_line(pair[0],pair[1],Color("966144"),18,true)
 		draw_line(pair[0]-Vector2(0,3),pair[1]-Vector2(0,3),Color("c98c62"),10,true)
 	poly(quad(iso(7.2,9.35),U*1.5,V*1.1),Color("d9b082"),true)
-	for c in outside: person("departing" if departures.has(c) else "customer"+str(c.variant),iso(c.g.x,c.g.y),70)
+	for c in outside: person(customer_name(c),iso(c.g.x,c.g.y),70,int(c.get("dir",2)),customer_action(c),float(c.g.x)*.3)
 	draw_sign(iso(5.3,9.9))
 	sprite(Art.name_for("plant",model.level("garden")),iso(6.2,9.5),44)
 	sprite(Art.name_for("plant",model.level("garden")),iso(9.95,9.55),52)

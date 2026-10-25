@@ -8,6 +8,10 @@
     "event": "first_sale"
   },
   {
+    "elapsed": 5.5,
+    "event": "achievement_first_sale"
+  },
+  {
     "elapsed": 6.7,
     "event": "first_harvest"
   },
@@ -24,47 +28,63 @@
     "event": "hire_gardener"
   },
   {
-    "elapsed": 53.1,
+    "elapsed": 52.9,
     "event": "hire_brewer"
   },
   {
-    "elapsed": 84.4,
+    "elapsed": 84.2,
     "event": "hire_cashier"
   },
   {
-    "elapsed": 102.8,
+    "elapsed": 84.3,
+    "event": "achievement_team"
+  },
+  {
+    "elapsed": 101.6,
     "event": "unlock_recipe_1"
   },
   {
-    "elapsed": 208.7,
+    "elapsed": 165.0,
+    "event": "missed_request"
+  },
+  {
+    "elapsed": 207.8,
     "event": "unlock_renovation"
   },
   {
-    "elapsed": 208.7,
+    "elapsed": 207.8,
     "event": "renovation_purchase"
   },
   {
-    "elapsed": 208.7,
+    "elapsed": 207.8,
     "event": "tutorial_complete"
   },
   {
-    "elapsed": 220.8,
+    "elapsed": 207.8,
+    "event": "achievement_glow_up"
+  },
+  {
+    "elapsed": 220.0,
     "event": "unlock_grow"
   },
   {
-    "elapsed": 236.9,
+    "elapsed": 236.1,
     "event": "unlock_brew"
   },
   {
-    "elapsed": 247.7,
+    "elapsed": 247.0,
     "event": "unlock_capacity"
   },
   {
-    "elapsed": 253.1,
+    "elapsed": 252.5,
     "event": "unlock_service"
   },
   {
-    "elapsed": 260.5,
+    "elapsed": 259.0,
     "event": "first_level"
+  },
+  {
+    "elapsed": 285.0,
+    "event": "missed_request"
   }
 ]

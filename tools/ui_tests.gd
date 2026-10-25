@@ -106,6 +106,22 @@ func run():
 	await app.tap(app.purchase_buttons["decor_floor_0"])
 	check(app.model.s.decor.floor==0 and app.model.s.decor.wall==1,"touch choice switches only the floor")
 	check(app.room.textures.has("cauldron_t3") and app.room.textures.has("moonflower_t3"),"master furniture and plants are loaded into the playable scene")
+	for name in ["owner","brewer","cashier","gardener","customer0","customer1","departing"]:
+		var sheet:Texture2D=app.room.character_sheets.get(name)
+		check(sheet!=null and sheet.get_width()==1024 and sheet.get_height()==1024,"16 aligned poses loaded: "+name)
+	check(app.room.direction(Vector2(-1,1))==0 and app.room.direction(Vector2(1,1))==1 and app.room.direction(Vector2(-1,-1))==2 and app.room.direction(Vector2(1,-1))==3,"all four travel directions select distinct facing columns")
+	app.room.clock=0
+	check(app.room.pose_row("idle")==0 and app.room.pose_row("walk")==1 and app.room.pose_row("pickup")==2 and app.room.pose_row("work")==3,"idle, stride, pickup and work select real pose rows")
+	app.room.clock=.2
+	var walk_recovery=app.room.pose_row("walk")==0
+	app.room.clock=.32
+	check(walk_recovery and app.room.pose_row("work")==0,"walk and work progress to their second keyframe")
+	var visitor={"g":app.room.DOOR,"path":[],"dir":2,"moving":false,"hold":.5,"variant":0}
+	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.2)
+	check(not visitor.moving and visitor.g==app.room.DOOR and app.room.customer_action(visitor)=="pickup","customer pauses to pick up a purchase")
+	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.5)
+	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.2)
+	check(visitor.moving and visitor.dir==1 and app.room.customer_action(visitor)=="walk","customer resumes with direction-aware walking")
 	app.sound.set_muted(true)
 	await create_timer(0.4).timeout
 	app.queue_free()

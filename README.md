@@ -46,6 +46,9 @@ Thirty new transparent variants cover furniture, beds, crop plants, decorative f
 
 Regenerate and validate with `python3 tools/extract_tiers.py`, `python3 tools/make_decor.py`, `python3 tools/check_assets.py`, and `godot --path . -s res://tools/art_preview.gd -- --ui-test`.
 
+## Directional character animations (0.5.0)
+All seven characters now use 4-direction, 4-action transparent atlases. Travel uses actual facing and alternating stride frames; pickups and active station work have their own poses. Customers keep their identity from queue through departure. See `docs/CHARACTER_ANIMATIONS.md`, the `character-directions.png` / `character-actions.png` review sheets, and the Pixel 6 `pixel6-animations.mp4` capture in `docs/evidence/tiered/`.
+
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.
 - `builds/little-lux-project.zip`: self-contained source, docs and screenshot evidence (excludes the APK, videos and import cache).
