@@ -31,3 +31,19 @@ The first garden wait is six seconds, with a stocked bottle available to sell me
 Two-hour offline cap: 72,000 fixed 0.1-second steps at most. A manual shop finishes its active crop/brew/checkout, but does not spontaneously harvest, start new brews or start new sales. No maximum-income shortcut.
 
 Physical Pixel 6 run confirmed the revised timing: first sale 5.5s (starter stock), first harvest 6.4s, first brewed-and-stocked potion 10.6s, gardener 22.0s, brewer 50.1s, cashier 81.1s, recipe 98.6s and renovation/tutorial 205.1s in the local event log. Wall-clock observations differ by approximately one second due to app startup and readback. All upgrades purchased by about 250 wall seconds.
+
+## Station levels (v0.3)
+Four stations level from 1 to `max_level` (100). Level-up cost is `station.cost × level_growth^(level−1)`, with `level_growth` 1.18 and base costs garden 40, cauldron 50, counter 60, shelf 90.
+
+| Station | Each level | Each milestone (Lv 10/25/50/75/100) |
+|---|---|---|
+| Garden beds | +6% grow speed, +2 herb bin | ×2 grow speed |
+| Cauldron | +6% brew speed | ×2 brew speed |
+| Counter | +6% customer arrival and checkout speed | ×2 both, +1 queue spot |
+| Shelf | +10% potion price, +1 bottle space | ×2 price |
+
+A station's multiplier is `(1 + level_speed × (level−1)) × 2^milestones`. At level 1 every number equals the v0.2 economy, so the intro pacing above is unchanged. The one-time upgrades still apply on top (soil and copper ×1.5, terminal ×2 checkout, roomy shelves double the base 6).
+
+The chain is min(herbs, potions, customers) × price, so the bottleneck moves as you level. An analytic payback-greedy simulation, starting after the one-time upgrades and assuming constant play, reaches all stations at Lv 10 in about 10 min, Lv 25 in about 17 min, Lv 50 in about 2.2 h and Lv 75 in about 20 h. Lv 100 is deliberately far off, which leaves room for prestige. The offline cap stays at two hours.
+
+Saves are now version 2. A version 1 save migrates on load with every station at level 1.

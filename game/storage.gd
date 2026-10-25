@@ -20,7 +20,7 @@ func save(model, now: float = -1.0) -> bool:
 		error = "Save verification failed"
 		return false
 	if FileAccess.file_exists(path):
-		var previous = parse(FileAccess.get_file_as_string(path))
+		var previous = model.migrate(parse(FileAccess.get_file_as_string(path)))
 		if model.valid(previous):
 			DirAccess.copy_absolute(path,path+".bak")
 	if DirAccess.rename_absolute(path+".tmp",path) != OK:
@@ -35,8 +35,8 @@ func load_into(model, now: float = -1.0) -> bool:
 	for suffix in ["", ".tmp", ".bak"]:
 		if not FileAccess.file_exists(path+suffix): continue
 		exists = true
-		var v = parse(FileAccess.get_file_as_string(path+suffix))
-		if v is Dictionary and v.get("version",0) > 1:
+		var v = model.migrate(parse(FileAccess.get_file_as_string(path+suffix)))
+		if v is Dictionary and v.get("version",0) > model.VERSION:
 			locked = true
 			error = "Save belongs to a newer version. Reset required."
 			return false

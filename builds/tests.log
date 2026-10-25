@@ -70,4 +70,18 @@ PASS fully automated offline production obeys two-hour cap
 PASS offline credited once across repeated process loads
 PASS future save version never silently overwritten
 PASS write blocked after future-schema refusal
-RESULT 70 checks / 0 failures
+PASS level 1 stations match original economy
+PASS level up needs its cost
+PASS level up charges once and raises level
+PASS cost grows by level_growth
+PASS each level adds level_speed
+PASS level 10 milestone doubles the station
+PASS shelf levels raise price and space
+PASS counter milestones add customers and queue spots
+PASS max level cannot be exceeded
+PASS short number format
+PASS goal picks the station nearest a milestone
+PASS version 1 save migrates with level 1 stations
+PASS old save file loads after the update
+PASS invalid station level rejected
+RESULT 84 checks / 0 failures

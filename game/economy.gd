@@ -5,15 +5,89 @@ var s: Dictionary
 var events: Array = []
 var feedback: Array = []
 var dirty := false
+const VERSION := 2
+const STATIONS := ["garden","cauldron","counter","shelf"]
 
 func _init():
 	fresh()
 
 func fresh():
-	s = {"version":1,"coins":int(cfg.starting_coins),"herbs":[0,0],"stock":[int(cfg.starting_stock),0],"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"crop":0,"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	s = {"version":VERSION,"levels":default_levels(),"coins":int(cfg.starting_coins),"herbs":[0,0],"stock":[int(cfg.starting_stock),0],"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"crop":0,"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
 	events.clear()
 	feedback.clear()
 	dirty = true
+
+func default_levels() -> Dictionary:
+	var levels := {}
+	for id in STATIONS: levels[id] = 1
+	return levels
+
+# Version 1 saves predate station levels; they start every station at level 1.
+func migrate(v: Variant) -> Variant:
+	if v is Dictionary and (v.get("version") is float or v.get("version") is int) and int(v.version) == 1:
+		v.version = VERSION
+		v.levels = default_levels()
+	return v
+
+func level(id: String) -> int:
+	return int(s.levels.get(id, 1))
+
+func milestones_reached(id: String) -> int:
+	var n := 0
+	for m in cfg.milestones:
+		if level(id) >= m: n += 1
+	return n
+
+func next_milestone(id: String) -> int:
+	for m in cfg.milestones:
+		if level(id) < m: return int(m)
+	return 0
+
+# Each level adds a flat bonus; each milestone doubles that station's output.
+func station_mult(id: String) -> float:
+	return (1.0 + cfg.level_speed * (level(id) - 1)) * pow(2.0, milestones_reached(id))
+
+func level_cost(id: String) -> int:
+	for st in cfg.stations:
+		if st.id == id: return int(round(st.cost * pow(cfg.level_growth, level(id) - 1)))
+	return 0
+
+func level_up(id: String) -> bool:
+	if not id in STATIONS or level(id) >= int(cfg.max_level): return false
+	var cost := level_cost(id)
+	if s.coins < cost: return false
+	s.coins -= cost
+	s.levels[id] = level(id) + 1
+	first("first_level")
+	# Milestones load from JSON as floats, so compare the reached one as an int.
+	if milestones_reached(id) > 0 and int(cfg.milestones[milestones_reached(id) - 1]) == level(id):
+		event("milestone_%s_%d" % [id, level(id)])
+		feedback.append("milestone")
+	else:
+		feedback.append("level")
+	dirty = true
+	return true
+
+func herb_capacity() -> int:
+	return int(cfg.herb_capacity) + 2 * (level("garden") - 1)
+
+func queue_capacity() -> int:
+	return 3 + milestones_reached("counter")
+
+func arrival_time() -> float:
+	return float(cfg.arrival_seconds) / station_mult("counter")
+
+func service_time() -> float:
+	return float(cfg.service_seconds) / (2.0 if owned("service") else 1.0) / station_mult("counter")
+
+func short(n: float) -> String:
+	if absf(n) < 10000: return str(int(n))
+	var units := ["K","M","B","T","Qa","Qi"]
+	var i := -1
+	while absf(n) >= 1000 and i < units.size() - 1:
+		n /= 1000.0
+		i += 1
+	return ("%.2f" % n if n < 10 else "%.1f" % n if n < 100 else "%d" % int(n)) + units[i]
 
 func owned(id: String) -> bool:
 	return s.owned.get(id, false)
@@ -31,23 +105,24 @@ func stock_count() -> int:
 	return int(s.stock[0] + s.stock[1])
 
 func capacity() -> int:
-	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1)
+	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1) + level("shelf") - 1
 
 func grow_time(crop: int) -> float:
-	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0)
+	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden")
 
 func brew_time(recipe: int) -> float:
-	return float(cfg.recipes[recipe].brew) / (1.5 if owned("brew") else 1.0)
+	return float(cfg.recipes[recipe].brew) / (1.5 if owned("brew") else 1.0) / station_mult("cauldron")
 
 func price(recipe: int) -> int:
-	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0)))
+	var shelf: float = (1.0 + cfg.shelf_price * (level("shelf") - 1)) * pow(2.0, milestones_reached("shelf"))
+	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf))
 
 func harvest() -> bool:
 	var did := false
 	for p in s.plots:
 		var c := int(p.crop)
 		var amount := int(cfg.crops[c].yield)
-		if p.progress >= grow_time(c) and s.herbs[c] + amount <= cfg.herb_capacity:
+		if p.progress >= grow_time(c) and s.herbs[c] + amount <= herb_capacity():
 			s.herbs[c] += amount
 			p.progress = 0.0
 			p.crop = s.crop
@@ -134,13 +209,13 @@ func tick(dt: float):
 		stock()
 		brew()
 	s.arrival += dt
-	if s.arrival >= cfg.arrival_seconds:
+	if s.arrival >= arrival_time():
 		s.arrival = 0.0
-		s.queue = min(3, s.queue + 1)
+		s.queue = min(queue_capacity(), s.queue + 1)
 	if owned("cashier"): serve()
 	if s.serving:
 		s.service += dt
-		if s.service + 0.00001 >= cfg.service_seconds / (2.0 if owned("service") else 1.0):
+		if s.service + 0.00001 >= service_time():
 			# Checkout is the only writer that removes stocked bottles.
 			var r := 1 if s.stock[1] > 0 else 0
 			if s.queue > 0 and s.stock[r] > 0:
@@ -162,7 +237,39 @@ func update_tutorial():
 	if stage == conditions.size(): first("tutorial_complete")
 
 func objective() -> String:
-	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in Improve • 48 coins","Save 320 coins for the grand glow-up","Your shop runs itself. What will you improve next?"][int(s.tutorial)]
+	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in Improve • 48 coins","Save 320 coins for the grand glow-up",milestone_goal()][int(s.tutorial)]
+
+func goal_station() -> String:
+	# The station closest (in levels) to its next ×2 milestone.
+	var best := ""
+	var gap := 1000
+	for id in STATIONS:
+		var m := next_milestone(id)
+		if m > 0 and m - level(id) < gap:
+			gap = m - level(id)
+			best = id
+	return best
+
+func milestone_goal() -> String:
+	var id := goal_station()
+	if id == "": return "Every station is maxed. Legendary!"
+	var what: String = {"garden":"growth","cauldron":"brew speed","counter":"customers","shelf":"potion prices"}[id]
+	var name: String = {"garden":"Garden beds","cauldron":"Cauldron","counter":"Counter","shelf":"Shelf"}[id]
+	return "%s Lv. %d/%d → ×2 %s" % [name, level(id), next_milestone(id), what]
+
+# Fraction toward the current objective, or -1 when it has no measurable target.
+func goal_progress() -> float:
+	var t := int(s.tutorial)
+	var costs := {3:32,4:56,5:80,6:48,7:320}
+	if costs.has(t): return clampf(float(s.coins) / costs[t], 0.0, 1.0)
+	if t == 8:
+		var id := goal_station()
+		if id == "": return 1.0
+		var prev := 1
+		for m in cfg.milestones:
+			if m <= level(id): prev = int(m)
+		return clampf(float(level(id) - prev) / (next_milestone(id) - prev), 0.0, 1.0)
+	return -1.0
 
 func status() -> String:
 	if s.ready: return "Shelf full" if stock_count() >= capacity() else "Potion ready • stock the shelf"
@@ -189,7 +296,7 @@ func offline(now: float) -> Dictionary:
 	return report
 
 func valid(v: Variant) -> bool:
-	if not v is Dictionary or v.get("version") != 1: return false
+	if not v is Dictionary or v.get("version") != VERSION: return false
 	for key in s:
 		if not v.has(key): return false
 	for key in ["coins","elapsed","timestamp","brew_progress","service","arrival","tutorial","queue"]:
@@ -205,7 +312,11 @@ func valid(v: Variant) -> bool:
 		if not v[key] is bool: return false
 	for key in ["crop","recipe","pot"]:
 		if not (v[key] is int or v[key] is float) or v[key] != floor(v[key]): return false
-	if int(v.crop) not in [0,1] or int(v.recipe) not in [0,1] or int(v.pot) not in [-1,0,1] or v.tutorial > 8 or v.queue > 3: return false
+	if int(v.crop) not in [0,1] or int(v.recipe) not in [0,1] or int(v.pot) not in [-1,0,1] or v.tutorial > 8 or v.queue > 3 + cfg.milestones.size(): return false
+	if not v.levels is Dictionary: return false
+	for id in STATIONS:
+		var n = v.levels.get(id)
+		if not (n is float or n is int) or n != floor(n) or n < 1 or n > cfg.max_level: return false
 	if v.ready and v.pot == -1: return false
 	if not v.plots is Array or v.plots.size() != 2: return false
 	for p in v.plots:

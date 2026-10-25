@@ -13,6 +13,10 @@ var floaters: Array = []
 var bounce := {}
 var coin_tex: Texture2D
 var tufts: Array = []
+var selected := "cauldron"
+var view_offset := Vector2.ZERO
+var view_scale := 1.0
+var last_sale_fx := -10.0
 const INK = Color("191b43")
 var font = ThemeDB.fallback_font
 # One oblique grid shared by the floor, walls and every prop, matched to the
@@ -26,7 +30,7 @@ const ROOM_V = 9.0
 const DOOR = Vector2(7.95,9.0)
 const DOOR_L = 6.6
 const DOOR_R = 9.3
-const QUEUE = [Vector2(10.1,6.1),Vector2(8.8,6.25),Vector2(7.5,6.45)]
+const QUEUE = [Vector2(10.1,6.1),Vector2(8.8,6.25),Vector2(7.5,6.45),Vector2(6.3,6.85),Vector2(5.2,7.3),Vector2(4.1,7.75),Vector2(3.0,8.15),Vector2(1.9,8.5)]
 const GRASS = Color("a9d675")
 const GRASS_DARK = Color("8cc05f")
 const STONE = Color("eadfc8")
@@ -98,6 +102,41 @@ func bed_center(i:int) -> Vector2:
 	if garden: return giso(-3.5,3.3) if i==0 else giso(2.8,6.0)
 	return Vector2(318,58) if i==0 else Vector2(458,96)
 
+func station_pos(id:String) -> Vector2:
+	match id:
+		"cauldron": return iso(1.7,2.8)
+		"shelf": return iso(7,1)
+		"counter": return iso(9.8,5)
+	return bed_center(0)
+
+# Which station a tap in this control's local space lands on, if any.
+func station_at(p:Vector2) -> String:
+	var q=(p-view_offset)/view_scale
+	if garden:
+		for i in range(2):
+			if q.distance_to(bed_center(i))<150: return "garden"
+		return ""
+	for id in ["counter","shelf","cauldron"]:
+		var half:Vector2={"cauldron":Vector2(75,150),"shelf":Vector2(80,165),"counter":Vector2(105,150)}[id]
+		var b=station_pos(id)
+		if Rect2(b-half,Vector2(half.x*2,half.y+12)).has_point(q): return id
+	for i in range(2):
+		if q.distance_to(bed_center(i))<80: return "garden"
+	return ""
+
+func badge(p:Vector2,id:String):
+	var on=id==selected
+	var label="Lv. %d" % model.level(id)
+	var w=font.get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,14).x+18
+	var st=StyleBoxFlat.new()
+	st.bg_color=Color("7d52c9") if on else Color("fff7eb")
+	st.border_color=Color("5b3a9e") if on else Color("d8c4b2")
+	st.set_border_width_all(2)
+	st.set_corner_radius_all(11)
+	var r=Rect2(p-Vector2(w/2,11),Vector2(w,24))
+	draw_style_box(st,r)
+	text(r.position+Vector2(9,17),label,14,Color("fff7eb") if on else INK)
+
 # Visual response to economy feedback; positions are in the 540x660 scene space.
 func burst(kind:String):
 	match kind:
@@ -116,10 +155,29 @@ func burst(kind:String):
 				bounce["cauldron"]=.6
 		"sale","dream_sale":
 			var at=iso(9.8,5)-Vector2(30,80) if not garden else Vector2(440,60)
-			if not garden:
-				spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
-				bounce["counter"]=.7
-			floaters.append({"p":at-Vector2(20,30),"t":0.0,"text":"+%d"%model.price(1 if kind=="dream_sale" else 0),"dream":kind=="dream_sale"})
+			var amount=model.price(1 if kind=="dream_sale" else 0)
+			# Fast checkouts merge into one rising total instead of a pile of labels.
+			if clock-last_sale_fx<.35 and not floaters.is_empty() and floaters.back().has("amount"):
+				var f=floaters.back()
+				f.amount+=amount
+				f.text="+"+model.short(f.amount)
+				f.t=minf(f.t,.2)
+			else:
+				if not garden: spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
+				floaters.append({"p":at-Vector2(20,30),"t":0.0,"amount":amount,"text":"+"+model.short(amount),"dream":kind=="dream_sale","coin":true})
+			last_sale_fx=clock
+			if not garden: bounce["counter"]=.7
+		"level","milestone":
+			var at=station_pos(selected)-Vector2(0,70)
+			if garden or selected=="garden": at=bed_center(0)-Vector2(0,40)
+			bounce["bed0" if selected=="garden" else selected]=1.0
+			if selected=="garden": bounce["bed1"]=1.0
+			if kind=="milestone":
+				spray(at,30,"star",Color("ffd765"),320,-160,160,1.3)
+				spray(at,16,"dot",Color("b58af1"),260,-180,260,1.1)
+				floaters.append({"p":at-Vector2(30,10),"t":0.0,"text":"×2!","dream":true,"coin":false})
+			else:
+				spray(at,10,"star",Color("fff1af"),150,-110,120,.8)
 		"upgrade":
 			spray(Vector2(270,300),26,"star",Color("ffd765"),300,-120,140,1.2)
 			spray(Vector2(270,300),14,"dot",Color("b58af1"),260,-160,260,1.0)
@@ -365,6 +423,7 @@ func draw_garden():
 			else:
 				person("owner",giso(.1,2.6),92)
 	if hired: person("owner",giso(.9,.9),80)
+	badge(bed_center(0)+Vector2(60,62),"garden")
 	sprite("bush",Vector2(520,640),140)
 	picket_fence(giso(6.6,6),giso(6.6,13),8)
 
@@ -445,6 +504,7 @@ func draw_shop():
 	wall(iso(0,0),iso(3.6,0),112,face,low)
 	sprite("gate",iso(4.25,0)+Vector2(0,8),92)
 	wall(iso(4.9,0),iso(ROOM_U,0),112,face,low)
+	badge(bed_center(0)+Vector2(-62,-6),"garden")
 	if renovated:
 		for i in range(9):
 			var p=iso(.5+i*1.6,0)-Vector2(0,96)
@@ -458,6 +518,7 @@ func draw_shop():
 	sprite("plant",iso(5.6,.8),46)
 	sprite_bounce("shelf",iso(7,1),150,"shelf")
 	shelf_bottles(iso(7,1),150)
+	badge(iso(7,1)+Vector2(-48,-24),"shelf")
 	var cauldron=iso(1.7,2.8)
 	if model.owned("brewer"): person("brewer",iso(2.95,2.05),78)
 	elif model.s.pot!=-1: person("owner",iso(2.95,2.05),83)
@@ -466,6 +527,7 @@ func draw_shop():
 		oval(cauldron-Vector2(0,24),Vector2(61,24),Color("fff6ff"))
 	sprite_bounce("cauldron",cauldron,140,"cauldron")
 	if model.s.ready: glints(cauldron-Vector2(0,85),Vector2(45,12),.2)
+	badge(cauldron+Vector2(0,-2),"cauldron")
 	if model.s.pot!=-1:
 		pill(cauldron+Vector2(-58,-178),"Ready to stock" if model.s.ready else "Brewing",model.s.brew_progress/model.brew_time(model.s.pot),115)
 		for i in range(5):
@@ -477,6 +539,7 @@ func draw_shop():
 	if model.owned("brewer") or model.s.pot==-1: person("owner",iso(5.6+sin(clock*.6)*.35,4),90)
 	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70)
 	sprite_bounce("counter",iso(9.8,5),206,"counter")
+	badge(iso(9.8,5)-Vector2(-20,36),"counter")
 	var inside=[]
 	var outside=[]
 	for c in customers+departures:
@@ -531,10 +594,11 @@ func draw_effects():
 		var a=clampf((1.3-f.t)*2.5,0,1)
 		var s=24+int(10*maxf(0,.25-f.t)/.25)
 		var c=Color("7b3fd1") if f.dream else Color("2f7d4f")
+		if not f.get("coin",true): s+=10
 		draw_string_outline(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,6,Color(1,1,1,a))
 		draw_string(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,Color(c,a))
 		var w=font.get_string_size(f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s).x
-		draw_texture_rect(coin_tex,Rect2(p+Vector2(w+4,-s*.8),Vector2(s*.85,s*.85)),false,Color(1,1,1,a))
+		if f.get("coin",true): draw_texture_rect(coin_tex,Rect2(p+Vector2(w+4,-s*.8),Vector2(s*.85,s*.85)),false,Color(1,1,1,a))
 
 func _draw():
 	if not model:return
@@ -542,7 +606,9 @@ func _draw():
 	var base_height=size.y/factor
 	# The scene is drawn past its 540x660 frame, so wider areas show more of it.
 	draw_rect(Rect2(Vector2.ZERO,size),GRASS)
-	draw_set_transform(Vector2((size.x-540*factor)*.5,maxf(0,(base_height-660)*.35*factor)),0,Vector2.ONE*factor)
+	view_offset=Vector2((size.x-540*factor)*.5,maxf(0,(base_height-660)*.35*factor))
+	view_scale=factor
+	draw_set_transform(view_offset,0,Vector2.ONE*factor)
 	if garden: draw_garden()
 	else: draw_shop()
 	if pulse>0 and effect=="stock" and not garden:

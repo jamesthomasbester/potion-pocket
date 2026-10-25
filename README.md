@@ -33,6 +33,9 @@ See `ART_DIRECTION.md`, `docs/ECONOMY.md`, `docs/VALIDATION.md`, `docs/HANDOFF.m
 ## Current visual redesign (0.2.0)
 The approved mockup drives the new warm timber, cream tiles, purple cauldron, rounded characters, cream/navy header, lavender goal/tabs and green upgrade card. Native manual controls collapse after hiring their worker. Gear opens management and recipe choices; tapping a hire/upgrade objective opens its management panel. Prices and timing reflect actual game data. See `docs/REDESIGN.md` and `docs/evidence/redesign/` for current screenshots and validation. Earlier videos/screenshots below document the previous foundation.
 
+## Station levels (0.3)
+Garden beds, Cauldron, Counter and Shelf level 1–100 with exponential costs; levels 10/25/50/75/100 double that station. Tap a station in the scene (each shows its level badge) to pick it on the card, or use Improve. Details: `docs/ECONOMY.md`.
+
 ## Polish pass
 Raised, squishy buttons; a counting coin balance; a goal banner with a progress bar toward its coin target; inventory chips; icon tabs; Team/Improve as sprite cards. The scene answers each action: leaf puffs on harvest, cauldron splash and squash on brew, an arcing bottle and shelf sparkle on stock, coin bursts with floating +N on sales, a sparkle burst on purchases and glints on anything ready to collect. During onboarding the next control to tap glows softly.
 

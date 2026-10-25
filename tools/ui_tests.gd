@@ -62,12 +62,21 @@ func run():
 	check(not app.sound.muted and not app.model.s.muted,"reset synchronizes sound and saved preference")
 	app.settings_box.hide()
 	await app.tap(app.shop_tab)
-	app.model.s.coins=64
+	app.model.s.coins=50
 	app.refresh()
 	await process_frame
+	check(app.card_title.text=="Cauldron · Lv. 1","shop card defaults to the cauldron station")
 	await app.tap(app.upgrade_button)
-	check(app.model.owned("brew") and app.model.s.coins==0,"context card purchases real cauldron upgrade")
-	check(is_equal_approx(app.model.brew_time(0),2.0),"card upgrade changes actual brew duration")
+	check(app.model.level("cauldron")==2 and app.model.s.coins==0,"context card levels the cauldron for its listed cost")
+	check(is_equal_approx(app.model.brew_time(0),3.0/1.06),"level up changes actual brew duration")
+	check(app.card_title.text=="Cauldron · Lv. 2","card shows the new level")
+	var counter_point=app.room.view_offset+app.room.station_pos("counter")*app.room.view_scale-Vector2(0,40*app.room.view_scale)
+	var press=InputEventMouseButton.new()
+	press.button_index=MOUSE_BUTTON_LEFT
+	press.pressed=true
+	press.position=counter_point
+	app.room.gui_input.emit(press)
+	check(app.selected_station=="counter" and "Counter" in app.card_title.text,"tapping the counter selects its station")
 	check(app.coins_label.text=="0","coin header displays integer balance")
 	check(app.room.clip_contents and app.room.size.y>=340,"scene stays clipped inside responsive scene area")
 	app.sound.set_muted(true)

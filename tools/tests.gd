@@ -156,5 +156,46 @@ func _initialize():
 	var future=E.new()
 	check(not store.load_into(future,1060) and store.locked,"future save version never silently overwritten")
 	check(not store.save(future,1060),"write blocked after future-schema refusal")
+	# Station levels.
+	m=E.new()
+	check(m.level("cauldron")==1 and is_equal_approx(m.station_mult("cauldron"),1.0) and m.capacity()==6 and m.price(1)==13,"level 1 stations match original economy")
+	check(m.level_cost("cauldron")==50 and not m.level_up("cauldron"),"level up needs its cost")
+	m.s.coins=50
+	check(m.level_up("cauldron") and m.s.coins==0 and m.level("cauldron")==2,"level up charges once and raises level")
+	check(m.level_cost("cauldron")==59,"cost grows by level_growth")
+	check(is_equal_approx(m.brew_time(0),3.0/1.06),"each level adds level_speed")
+	m.s.levels.cauldron=9
+	m.s.coins=1000000
+	m.feedback.clear()
+	m.level_up("cauldron")
+	check(m.feedback.has("milestone") and is_equal_approx(m.station_mult("cauldron"),(1+0.06*9)*2.0),"level 10 milestone doubles the station")
+	m.s.levels.shelf=10
+	check(m.price(0)==int(round(8*1.9*2)) and m.capacity()==15,"shelf levels raise price and space")
+	m.s.levels.counter=25
+	check(m.queue_capacity()==5 and is_equal_approx(m.arrival_time(),3.0/((1+0.06*24)*4.0)),"counter milestones add customers and queue spots")
+	m.s.levels.garden=100
+	check(not m.level_up("garden") and m.level("garden")==100,"max level cannot be exceeded")
+	check(m.short(999)=="999" and m.short(12345)=="12.3K" and m.short(2500000)=="2.50M","short number format")
+	m=E.new()
+	m.s.levels.counter=7
+	check(m.milestone_goal().begins_with("Counter Lv. 7/10") or m.goal_station()=="counter","goal picks the station nearest a milestone")
+	var legacy=JSON.parse_string(JSON.stringify(E.new().s))
+	legacy.version=1
+	legacy.erase("levels")
+	check(m.valid(m.migrate(legacy)) and legacy.levels.cauldron==1,"version 1 save migrates with level 1 stations")
+	store=S.new()
+	store.path="user://migrate-test.json"
+	f=FileAccess.open(store.path,FileAccess.WRITE)
+	var old=JSON.parse_string(JSON.stringify(E.new().s))
+	old.version=1
+	old.erase("levels")
+	old.coins=77
+	f.store_string(JSON.stringify(old))
+	f.close()
+	var upgraded=E.new()
+	check(store.load_into(upgraded,0) and upgraded.s.coins==77 and upgraded.s.version==2 and not store.locked,"old save file loads after the update")
+	invalid=upgraded.s.duplicate(true)
+	invalid.levels.shelf=0
+	check(not m.valid(invalid),"invalid station level rejected")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

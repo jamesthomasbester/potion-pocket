@@ -45,6 +45,9 @@ var card_icon: TextureRect
 var card_title: Label
 var card_detail: Label
 var upgrade_button: Button
+var card_milestone: Label
+var selected_station := "cauldron"
+var purchase_labels := {}
 var coin_tex: Texture2D
 var harness := false
 var perf_frames: Array[float] = []
@@ -59,6 +62,7 @@ const LAVENDER = Color("cdb3fa")
 const LILAC = Color("e6d8fc")
 const GOLD = Color("f2b632")
 const DISABLED = Color("e4e2dc")
+const STATION_ICONS = {"garden":"leaves","cauldron":"cauldron","counter":"counter","shelf":"shelf"}
 # Purchase cards reuse the scene sprites so the menu reads like the shop.
 const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron","service":"counter","capacity":"shelf","renovation":"flowers"}
 
@@ -182,7 +186,7 @@ func _ready():
 		modal.dialog_text=storage.error
 		modal.popup_centered(Vector2i(460,180))
 	elif not model.s.offline_notice.is_empty():
-		modal.dialog_text="Welcome back!\nAway for %d seconds. Your team earned %d coins.\nOffline work is limited to two hours." % [model.s.offline_notice.seconds,model.s.offline_notice.coins]
+		modal.dialog_text="Welcome back!\nAway for %d seconds. Your team earned %s coins.\nOffline work is limited to two hours." % [model.s.offline_notice.seconds,model.short(model.s.offline_notice.coins)]
 		modal.popup_centered(Vector2i(460,230))
 		model.s.offline_notice={}
 		persist()
@@ -263,11 +267,18 @@ func build_ui():
 	goal_panel.gui_input.connect(func(event):
 		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
 			if "Hire" in model.objective(): show_upgrades(true)
-			elif "Improve" in model.objective() or "Upgrade" in model.objective() or "glow-up" in model.objective(): show_upgrades(false))
+			elif "Improve" in model.objective() or "Lv." in model.objective() or "glow-up" in model.objective(): show_upgrades(false))
 	room=Room.new()
 	room.custom_minimum_size.y=340
 	room.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	room.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	room.mouse_filter=Control.MOUSE_FILTER_STOP
+	room.gui_input.connect(func(event):
+		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
+			var id:String=room.station_at(event.position)
+			if id!="" and id!=selected_station:
+				selected_station=id
+				sound.play("tap")
+				refresh())
 	room.clip_contents=true
 	room.model=model
 	root_box.add_child(room)
@@ -326,10 +337,10 @@ func build_ui():
 	card_detail=label("",16)
 	card_detail.add_theme_color_override("font_color",Color("4b4e72"))
 	copy.add_child(card_detail)
-	upgrade_button=button("",func():
-		var id="grow" if tab=="garden" else "brew"
-		if model.owned(id): show_upgrades(false)
-		else: buy(id),64)
+	card_milestone=label("",14)
+	card_milestone.add_theme_color_override("font_color",Color("7b4fd0"))
+	copy.add_child(card_milestone)
+	upgrade_button=button("",func(): level_up(selected_station),64)
 	upgrade_button.custom_minimum_size.x=132
 	upgrade_button.size_flags_horizontal=Control.SIZE_SHRINK_END
 	info.add_child(upgrade_button)
@@ -451,6 +462,7 @@ func switch_tab(value: String):
 		room.create_tween().tween_property(room,"modulate",Color.WHITE,0.22)
 	tab=value
 	room.garden=tab=="garden"
+	selected_station="garden" if tab=="garden" else "cauldron"
 	room.queue_redraw()
 	refresh()
 
@@ -484,8 +496,93 @@ func buy(id: String):
 	if storage.locked: return
 	if model.purchase(id):
 		if purchase_cards.has(id): pop(purchase_cards[id],1.0,0.35,1.06)
-		if id in ["grow","brew"]: pop(upgrade_button,1.0,0.35,1.12)
 	after_action()
+
+func level_up(id: String):
+	if storage.locked: return
+	room.selected=id
+	if model.level_up(id):
+		pop(upgrade_button,1.0,0.3,1.1)
+		if purchase_cards.has("lv_"+id): pop(purchase_cards["lv_"+id],1.0,0.3,1.05)
+	after_action()
+
+func seconds(v: float) -> String:
+	return "%.2fs" % v if v<2 else "%.1fs" % v
+
+# Current value of a station's headline stat, for "now → next" text.
+func station_value(id: String) -> String:
+	match id:
+		"garden": return seconds(model.grow_time(int(model.s.crop)))
+		"cauldron": return seconds(model.brew_time(int(model.s.recipe)))
+		"counter": return seconds(model.arrival_time())
+	return model.short(model.price(int(model.s.recipe)))
+
+func station_detail(id: String) -> String:
+	var label_text:String={"garden":"Grow","cauldron":"Brew","counter":"Customer every","shelf":"Price"}[id]
+	var now:=station_value(id)
+	if model.level(id)>=int(model.cfg.max_level): return "%s %s" % [label_text,now]
+	model.s.levels[id]+=1
+	var next:=station_value(id)
+	model.s.levels[id]-=1
+	return "%s %s → %s" % [label_text,now,next]
+
+func station_milestone(id: String) -> String:
+	var m:int=model.next_milestone(id)
+	if m==0: return "★ Max level"
+	var what:String={"garden":"growth","cauldron":"brew speed","counter":"customers","shelf":"prices"}[id]
+	return "★ Lv. %d: ×2 %s" % [m,what]
+
+func station_name(id: String) -> String:
+	if id=="garden": return model.cfg.crops[int(model.s.crop)].name
+	for st in model.cfg.stations:
+		if st.id==id: return st.name
+	return id
+
+func station_icon(id: String) -> Texture2D:
+	if id=="garden": return room.textures["flowers" if int(model.s.crop)==1 else "leaves"]
+	return room.textures[STATION_ICONS[id]]
+
+func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable, key: String):
+	var card:=PanelContainer.new()
+	var st:=style(Color("fffdf8"),20)
+	st.border_color=Color("ead9c4")
+	st.set_border_width_all(2)
+	st.border_width_bottom=5
+	st.content_margin_left=12
+	st.content_margin_top=10
+	st.content_margin_bottom=10
+	card.add_theme_stylebox_override("panel",st)
+	squish(card)
+	upgrade_list.add_child(card)
+	var r:=row()
+	r.add_theme_constant_override("separation",12)
+	card.add_child(r)
+	r.add_child(tile(icon,60))
+	var copy:=VBoxContainer.new()
+	copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	copy.alignment=BoxContainer.ALIGNMENT_CENTER
+	copy.add_theme_constant_override("separation",2)
+	r.add_child(copy)
+	var name_label:=label(title,21)
+	copy.add_child(name_label)
+	var benefit_label:=label(benefit,16)
+	benefit_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	benefit_label.add_theme_color_override("font_color",Color("4b4e72"))
+	copy.add_child(benefit_label)
+	var b:=button("",action,60)
+	b.custom_minimum_size.x=112
+	b.size_flags_horizontal=Control.SIZE_SHRINK_END
+	b.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+	r.add_child(b)
+	purchase_buttons[key]=b
+	purchase_cards[key]=card
+	purchase_labels[key]=[name_label,benefit_label]
+
+func section(title: String):
+	var l:=label(title,16)
+	l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_color_override("font_color",Color("7b4fd0"))
+	upgrade_list.add_child(l)
 
 func show_upgrades(team: bool):
 	for child in upgrade_list.get_children():
@@ -493,41 +590,15 @@ func show_upgrades(team: bool):
 		child.queue_free()
 	purchase_buttons.clear()
 	purchase_cards.clear()
+	purchase_labels.clear()
 	upgrade_title.text="Your team" if team else "Improve the shop"
+	if not team:
+		section("STATIONS • levels 10, 25, 50, 75 and 100 each double that station")
+		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
+		section("ONE-TIME UPGRADES")
 	for p in model.cfg.purchases:
 		if (p.id in ["gardener","brewer","cashier"]) != team: continue
-		var card:=PanelContainer.new()
-		var st:=style(Color("fffdf8"),20)
-		st.border_color=Color("ead9c4")
-		st.set_border_width_all(2)
-		st.border_width_bottom=5
-		st.content_margin_left=12
-		st.content_margin_top=10
-		st.content_margin_bottom=10
-		card.add_theme_stylebox_override("panel",st)
-		squish(card)
-		upgrade_list.add_child(card)
-		var r:=row()
-		r.add_theme_constant_override("separation",12)
-		card.add_child(r)
-		r.add_child(tile(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),60))
-		var copy:=VBoxContainer.new()
-		copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		copy.alignment=BoxContainer.ALIGNMENT_CENTER
-		copy.add_theme_constant_override("separation",2)
-		r.add_child(copy)
-		copy.add_child(label(p.name,21))
-		var benefit:=label(p.benefit,16)
-		benefit.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		benefit.add_theme_color_override("font_color",Color("4b4e72"))
-		copy.add_child(benefit)
-		var b:=button("",buy.bind(p.id),60)
-		b.custom_minimum_size.x=112
-		b.size_flags_horizontal=Control.SIZE_SHRINK_END
-		b.size_flags_vertical=Control.SIZE_SHRINK_CENTER
-		r.add_child(b)
-		purchase_buttons[p.id]=b
-		purchase_cards[p.id]=card
+		shop_card(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),p.name,p.benefit,buy.bind(p.id),p.id)
 	upgrade_layer.modulate=Color(1,1,1,0)
 	upgrade_layer.show()
 	upgrade_layer.create_tween().tween_property(upgrade_layer,"modulate",Color.WHITE,0.16)
@@ -537,10 +608,6 @@ func show_upgrades(team: bool):
 func close_upgrades():
 	upgrade_layer.hide()
 	sound.play("tap")
-
-func goal_cost() -> int:
-	var found:=RegEx.create_from_string("(\\d+) coins").search(model.objective())
-	return int(found.get_string(1)) if found else 0
 
 # The control that completes the current onboarding step, so it can glow.
 func tutorial_target() -> Button:
@@ -555,29 +622,28 @@ func refresh():
 	if not is_instance_valid(header): return
 	header.text="Herb Garden" if tab=="garden" else "Potion Shop"
 	if model.s.coins<shown_coins or not is_processing(): shown_coins=model.s.coins
-	coins_label.text=str(int(shown_coins))
+	coins_label.text=model.short(shown_coins)
 	var goal:String=model.objective()
 	objective.text=goal
 	if goal!=last_objective:
 		if last_objective!="": pop(goal_panel,1.0,0.4,1.06)
 		last_objective=goal
-	var cost:=goal_cost()
-	goal_bar.visible=cost>0
-	goal_bar.value=clampf(model.s.coins/float(maxi(cost,1)),0,1)*100
+	var progress:float=model.goal_progress()
+	goal_bar.visible=progress>=0
+	goal_bar.value=progress*100
 	goal_bar.add_theme_stylebox_override("fill",style(TEAL if goal_bar.value>=100 else Color("a77cf0"),4))
 	mute.text="Muted" if model.s.muted else "Sound"
 	var s: Dictionary=model.s
-	var upgrade_id="grow" if tab=="garden" else "brew"
-	var improved=model.owned(upgrade_id)
-	var crop_name:String=model.cfg.crops[int(s.crop)].name
-	card_title.text=(crop_name if tab=="garden" else "Cauldron")+" · Lv. "+("2" if improved else "1")
-	card_icon.texture=room.textures[("flowers" if int(s.crop)==1 else "leaves") if tab=="garden" else "cauldron"]
-	var duration=model.grow_time(s.crop) if tab=="garden" else model.brew_time(s.recipe)
-	card_detail.text=("Grow" if tab=="garden" else "Brew")+" time %.1fs" % duration+("" if improved else " → %.1fs" % (duration/1.5))
-	var upgrade_cost=48 if tab=="garden" else 64
-	upgrade_button.text="Improve" if improved else "Upgrade\n%d" % upgrade_cost
-	upgrade_button.icon=null if improved else coin_tex
-	upgrade_button.disabled=not improved and s.coins<upgrade_cost
+	var id:=selected_station
+	var maxed:bool=model.level(id)>=int(model.cfg.max_level)
+	room.selected=id
+	card_title.text="%s · Lv. %d" % [station_name(id),model.level(id)]
+	card_icon.texture=station_icon(id)
+	card_detail.text=station_detail(id)
+	card_milestone.text=station_milestone(id)
+	upgrade_button.text="Max" if maxed else "Level up\n"+model.short(model.level_cost(id))
+	upgrade_button.icon=null if maxed else coin_tex
+	upgrade_button.disabled=maxed or s.coins<model.level_cost(id)
 	leaf_count.text=str(int(s.herbs[0]))
 	flower_count.text=str(int(s.herbs[1]))
 	flower_chip.visible=model.owned("recipe") or s.herbs[1]>0
@@ -600,11 +666,11 @@ func refresh():
 		primary.text="Harvest + replant"
 		var ready:=false
 		for p in s.plots:
-			if p.progress>=model.grow_time(p.crop) and s.herbs[int(p.crop)]+2<=model.cfg.herb_capacity: ready=true
+			if p.progress>=model.grow_time(p.crop) and s.herbs[int(p.crop)]+2<=model.herb_capacity(): ready=true
 		primary.disabled=not ready
 		if not ready:
 			for p in s.plots:
-				if p.progress>=model.grow_time(p.crop) and s.herbs[int(p.crop)]+2>model.cfg.herb_capacity: status.text="Herb bin full • brew or switch crops"
+				if p.progress>=model.grow_time(p.crop) and s.herbs[int(p.crop)]+2>model.herb_capacity(): status.text="Herb bin full • brew or switch crops"
 		secondary.text="Go brew →"
 		secondary.disabled=false
 	else:
@@ -621,6 +687,15 @@ func refresh():
 			st.corner_radius_top_right=24
 			for state in ["normal","hover","pressed"]:b.add_theme_stylebox_override(state,st)
 			b.modulate=Color.WHITE if active else Color(1,1,1,0.75)
+	for sid in model.STATIONS:
+		if purchase_buttons.has("lv_"+sid):
+			var b: Button=purchase_buttons["lv_"+sid]
+			var top:bool=model.level(sid)>=int(model.cfg.max_level)
+			b.text="Max" if top else model.short(model.level_cost(sid))
+			b.icon=null if top else coin_tex
+			b.disabled=top or s.coins<model.level_cost(sid)
+			purchase_labels["lv_"+sid][0].text="%s · Lv. %d" % [station_name(sid) if sid!="garden" else "Garden beds",model.level(sid)]
+			purchase_labels["lv_"+sid][1].text=station_detail(sid)+"\n"+station_milestone(sid)
 	for p in model.cfg.purchases:
 		if purchase_buttons.has(p.id):
 			var b: Button=purchase_buttons[p.id]
@@ -640,8 +715,8 @@ func flush_feedback():
 		room.effect=kind
 		room.pulse=1.2
 		room.burst(kind)
-		sound.play(kind)
-		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade"]: Input.vibrate_handheld(18,0.3)
+		sound.play("upgrade" if kind in ["level","milestone"] else kind)
+		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone"]: Input.vibrate_handheld(40 if kind=="milestone" else 18,0.3)
 	model.feedback.clear()
 
 func persist():
@@ -757,6 +832,15 @@ func run_capture():
 				upgrade_layer.hide()
 				print("PLAY purchase ",id," at ",model.s.elapsed)
 			break
+		if model.owned("service"):
+			# After the one-time purchases, keep levelling the cheapest station via the card.
+			var cheapest:="cauldron"
+			for sid in model.STATIONS:
+				if model.level_cost(sid)<model.level_cost(cheapest): cheapest=sid
+			if model.s.coins>=model.level_cost(cheapest):
+				selected_station=cheapest
+				refresh()
+				await tap(upgrade_button)
 		if model.owned("cashier") and not recorded_automation:
 			await screenshot("automated-shop")
 			recorded_automation=true

@@ -40,19 +40,19 @@
   "purchases": [
     {
       "id": "gardener",
-      "name": "Pip \u2022 gardener",
+      "name": "Pip • gardener",
       "cost": 32,
       "benefit": "Harvests + replants both beds"
     },
     {
       "id": "brewer",
-      "name": "Momo \u2022 brewer",
+      "name": "Momo • brewer",
       "cost": 56,
       "benefit": "Brews + stocks automatically"
     },
     {
       "id": "cashier",
-      "name": "Sol \u2022 cashier",
+      "name": "Sol • cashier",
       "cost": 80,
       "benefit": "Serves waiting customers"
     },
@@ -60,31 +60,31 @@
       "id": "recipe",
       "name": "Moonflower recipe",
       "cost": 48,
-      "benefit": "Unlock Dreamdrop \u2022 sells for 13"
+      "benefit": "Unlock Dreamdrop • sells for 13"
     },
     {
       "id": "grow",
       "name": "Enchanted soil",
       "cost": 48,
-      "benefit": "Growth 6 / 8s \u2192 4 / 5.3s"
+      "benefit": "Beds grow 1.5× faster"
     },
     {
       "id": "brew",
       "name": "Copper cauldron",
       "cost": 64,
-      "benefit": "Brewing 3 / 4s \u2192 2 / 2.7s"
+      "benefit": "Brewing 1.5× faster"
     },
     {
       "id": "service",
       "name": "Tap-to-pay terminal",
       "cost": 40,
-      "benefit": "Checkout 1.8s \u2192 0.9s"
+      "benefit": "Checkout 2× faster"
     },
     {
       "id": "capacity",
       "name": "Roomy shelves",
       "cost": 56,
-      "benefit": "Shelf capacity 6 \u2192 12 bottles"
+      "benefit": "Base shelf space 6 → 12"
     },
     {
       "id": "renovation",
@@ -92,5 +92,38 @@
       "cost": 320,
       "benefit": "New tiles, walls + sign; sales +25%"
     }
-  ]
+  ],
+  "stations": [
+    {
+      "id": "garden",
+      "name": "Garden beds",
+      "cost": 40
+    },
+    {
+      "id": "cauldron",
+      "name": "Cauldron",
+      "cost": 50
+    },
+    {
+      "id": "counter",
+      "name": "Counter",
+      "cost": 60
+    },
+    {
+      "id": "shelf",
+      "name": "Shelf",
+      "cost": 90
+    }
+  ],
+  "level_growth": 1.18,
+  "level_speed": 0.06,
+  "shelf_price": 0.1,
+  "milestones": [
+    10,
+    25,
+    50,
+    75,
+    100
+  ],
+  "max_level": 100
 }
