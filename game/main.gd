@@ -3,6 +3,7 @@ const Economy = preload("res://game/economy.gd")
 const Storage = preload("res://game/storage.gd")
 const Room = preload("res://game/room.gd")
 const Sound = preload("res://game/sound.gd")
+const Art = preload("res://game/art_catalog.gd")
 var model = Economy.new()
 var storage = Storage.new()
 var room
@@ -34,6 +35,7 @@ var garden_tab: Button
 var mute: Button
 var upgrade_layer: PanelContainer
 var upgrade_title: Label
+var overlay_sub: Label
 var upgrade_list: VBoxContainer
 var purchase_buttons := {}
 var purchase_cards := {}
@@ -295,6 +297,7 @@ func build_ui():
 	mute=button("Sound",toggle_mute,50,CREAM)
 	management.add_child(mute)
 	management.add_child(button("Reset",func(): reset_dialog.popup_centered(Vector2i(440,180)),50,Color("f4c6b8")))
+	settings_box.add_child(button("Décor • floors & walls",show_decor,52,LAVENDER))
 	var choices=row()
 	settings_box.add_child(choices)
 	choice0=button("",func(): select(0),60,CREAM)
@@ -303,7 +306,9 @@ func build_ui():
 	choices.add_child(choice1)
 	settings_panel.hide()
 	# Tests and the QA run toggle settings_box directly; keep its panel in step.
-	settings_box.visibility_changed.connect(func(): settings_panel.visible=settings_box.visible)
+	settings_box.visibility_changed.connect(func():
+		settings_panel.visible=settings_box.visible
+		room.custom_minimum_size.y=160 if settings_box.visible else 340)
 	settings_box.visible=false
 	var card=PanelContainer.new()
 	var card_style:=style(CREAM,0)
@@ -398,6 +403,7 @@ func build_ui():
 	close.size_flags_horizontal=Control.SIZE_SHRINK_END
 	title_row.add_child(close)
 	var sub=label("Earn coins by selling potions, then grow your little business.",17)
+	overlay_sub=sub
 	sub.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_color_override("font_color",Color("4b4e72"))
 	content.add_child(sub)
@@ -539,8 +545,9 @@ func station_name(id: String) -> String:
 	return id
 
 func station_icon(id: String) -> Texture2D:
-	if id=="garden": return room.textures["flowers" if int(model.s.crop)==1 else "leaves"]
-	return room.textures[STATION_ICONS[id]]
+	if id=="garden":
+		return room.textures[Art.name_for("moonflower" if int(model.s.crop)==1 else "mint",model.level("garden"))]
+	return room.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
 
 func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable, key: String):
 	var card:=PanelContainer.new()
@@ -585,20 +592,51 @@ func section(title: String):
 	upgrade_list.add_child(l)
 
 func show_upgrades(team: bool):
+	clear_cards()
+	upgrade_title.text="Your team" if team else "Improve the shop"
+	overlay_sub.text="Earn coins by selling potions, then grow your little business."
+	if not team:
+		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
+		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
+		section("ONE-TIME UPGRADES")
+	for p in model.cfg.purchases:
+		if (p.id in ["gardener","brewer","cashier"]) != team: continue
+		shop_card(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),p.name,p.benefit,buy.bind(p.id),p.id)
+	open_cards()
+
+func clear_cards():
 	for child in upgrade_list.get_children():
 		upgrade_list.remove_child(child)
 		child.queue_free()
 	purchase_buttons.clear()
 	purchase_cards.clear()
 	purchase_labels.clear()
-	upgrade_title.text="Your team" if team else "Improve the shop"
-	if not team:
-		section("STATIONS • levels 10, 25, 50, 75 and 100 each double that station")
-		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
-		section("ONE-TIME UPGRADES")
-	for p in model.cfg.purchases:
-		if (p.id in ["gardener","brewer","cashier"]) != team: continue
-		shop_card(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),p.name,p.benefit,buy.bind(p.id),p.id)
+
+func show_decor():
+	clear_cards()
+	upgrade_title.text="Choose your décor"
+	overlay_sub.text="Select an unlocked look. New finishes arrive as your shop grows."
+	section("FLOORS • select any unlocked tile")
+	for i in range(3):
+		var item:Dictionary=Art.FLOORS[i]
+		var icon=load("res://game/art/decor/floor_%d.svg" % i)
+		shop_card(icon,item.name,item.unlock,select_decor.bind("floor",i),"decor_floor_%d" % i)
+	section("WALLS • select any unlocked finish")
+	for i in range(3):
+		var item:Dictionary=Art.WALLS[i]
+		var icon=load("res://game/art/decor/wall_%d.svg" % i)
+		shop_card(icon,item.name,item.unlock,select_decor.bind("wall",i),"decor_wall_%d" % i)
+	open_cards()
+
+func select_decor(kind: String,variant: int):
+	if storage.locked: return
+	if model.select_decor(kind,variant):
+		sound.play("upgrade")
+		room.queue_redraw()
+		persist()
+		refresh()
+
+func open_cards():
 	upgrade_layer.modulate=Color(1,1,1,0)
 	upgrade_layer.show()
 	upgrade_layer.create_tween().tween_property(upgrade_layer,"modulate",Color.WHITE,0.16)
@@ -704,6 +742,16 @@ func refresh():
 			b.icon=null if owned else coin_tex
 			b.disabled=owned or s.coins<p.cost
 			purchase_cards[p.id].modulate=Color(1,1,1,0.62) if owned else Color.WHITE
+	for kind in ["floor","wall"]:
+		for i in range(3):
+			var key="decor_%s_%d" % [kind,i]
+			if purchase_buttons.has(key):
+				var b:Button=purchase_buttons[key]
+				var unlocked:bool=model.decor_unlocked(kind,i)
+				var chosen:bool=int(s.decor[kind])==i
+				b.text="Selected" if chosen else "Use" if unlocked else "Locked"
+				b.disabled=not unlocked or chosen
+				purchase_cards[key].modulate=Color.WHITE if unlocked else Color(1,1,1,.65)
 	if storage.locked:
 		primary.disabled=true
 		secondary.disabled=true
@@ -796,7 +844,7 @@ func screenshot(name: String):
 	# Let tab fades finish so evidence shows the settled scene.
 	await get_tree().create_timer(0.3).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://docs/evidence/redesign/"+("tall-" if "--tall" in OS.get_cmdline_user_args() else "")+name+".png")
+	get_viewport().get_texture().get_image().save_png("res://docs/evidence/tiered/"+("tall-" if "--tall" in OS.get_cmdline_user_args() else "")+name+".png")
 
 func run_capture():
 	await get_tree().create_timer(0.3).timeout

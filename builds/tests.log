@@ -84,4 +84,14 @@ PASS goal picks the station nearest a milestone
 PASS version 1 save migrates with level 1 stations
 PASS old save file loads after the update
 PASS invalid station level rejected
-RESULT 84 checks / 0 failures
+PASS renovation floor stays locked
+PASS renovation applies its new floor and wall
+PASS owned floor choices can be selected
+PASS garden tier 3 unlocks botanical tile without overriding a manual choice
+PASS counter tier 3 unlocks and applies ivy wall
+PASS selected architecture validates
+PASS invalid decoration index rejected
+PASS decorated game saves
+PASS floor and wall choices survive load
+PASS version 2 save migrates renovation appearance
+RESULT 94 checks / 0 failures

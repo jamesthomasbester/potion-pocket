@@ -193,9 +193,34 @@ func _initialize():
 	f.store_string(JSON.stringify(old))
 	f.close()
 	var upgraded=E.new()
-	check(store.load_into(upgraded,0) and upgraded.s.coins==77 and upgraded.s.version==2 and not store.locked,"old save file loads after the update")
+	check(store.load_into(upgraded,0) and upgraded.s.coins==77 and upgraded.s.version==3 and not store.locked,"old save file loads after the update")
 	invalid=upgraded.s.duplicate(true)
 	invalid.levels.shelf=0
 	check(not m.valid(invalid),"invalid station level rejected")
+	# Decorative choices survive saves and cannot be selected before unlocking.
+	m=E.new()
+	check(not m.select_decor("floor",1) and m.s.decor.floor==0,"renovation floor stays locked")
+	m.s.coins=320
+	check(m.purchase("renovation") and m.s.decor.floor==1 and m.s.decor.wall==1,"renovation applies its new floor and wall")
+	check(m.select_decor("floor",0) and m.s.decor.manual_floor,"owned floor choices can be selected")
+	m.s.levels.garden=6
+	m.s.coins=100000
+	check(m.level_up("garden") and m.decor_unlocked("floor",2) and m.s.decor.floor==0,"garden tier 3 unlocks botanical tile without overriding a manual choice")
+	m.s.levels.counter=6
+	check(m.level_up("counter") and m.decor_unlocked("wall",2) and m.s.decor.wall==2,"counter tier 3 unlocks and applies ivy wall")
+	check(m.select_decor("wall",0) and m.valid(m.s),"selected architecture validates")
+	invalid=m.s.duplicate(true)
+	invalid.decor.floor=4
+	check(not m.valid(invalid),"invalid decoration index rejected")
+	store=S.new()
+	store.path="user://decor-test.json"
+	check(store.save(m,2000),"decorated game saves")
+	var decor_restored=E.new()
+	check(store.load_into(decor_restored,2000) and int(decor_restored.s.decor.floor)==int(m.s.decor.floor) and int(decor_restored.s.decor.wall)==int(m.s.decor.wall) and decor_restored.s.decor.manual_floor==m.s.decor.manual_floor and decor_restored.s.decor.manual_wall==m.s.decor.manual_wall,"floor and wall choices survive load")
+	var version_two=JSON.parse_string(JSON.stringify(E.new().s))
+	version_two.version=2
+	version_two.erase("decor")
+	version_two.owned.renovation=true
+	check(m.valid(m.migrate(version_two)) and version_two.decor.floor==1 and version_two.decor.wall==1,"version 2 save migrates renovation appearance")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

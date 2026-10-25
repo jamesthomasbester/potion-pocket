@@ -5,14 +5,14 @@ var s: Dictionary
 var events: Array = []
 var feedback: Array = []
 var dirty := false
-const VERSION := 2
+const VERSION := 3
 const STATIONS := ["garden","cauldron","counter","shelf"]
 
 func _init():
 	fresh()
 
 func fresh():
-	s = {"version":VERSION,"levels":default_levels(),"coins":int(cfg.starting_coins),"herbs":[0,0],"stock":[int(cfg.starting_stock),0],"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"crop":0,"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	s = {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":[0,0],"stock":[int(cfg.starting_stock),0],"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"crop":0,"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
 	events.clear()
 	feedback.clear()
 	dirty = true
@@ -22,12 +22,40 @@ func default_levels() -> Dictionary:
 	for id in STATIONS: levels[id] = 1
 	return levels
 
-# Version 1 saves predate station levels; they start every station at level 1.
+func default_decor() -> Dictionary:
+	return {"floor":0,"wall":0,"manual_floor":false,"manual_wall":false}
+
+# Preserve old level and economy data while adding selectable decoration.
 func migrate(v: Variant) -> Variant:
 	if v is Dictionary and (v.get("version") is float or v.get("version") is int) and int(v.version) == 1:
-		v.version = VERSION
+		v.version = 2
 		v.levels = default_levels()
+	if v is Dictionary and (v.get("version") is float or v.get("version") is int) and int(v.version) == 2:
+		v.version = VERSION
+		v.decor = default_decor()
+		if v.owned.get("renovation",false):
+			v.decor.floor = 1
+			v.decor.wall = 1
 	return v
+
+func decor_unlocked(kind: String, variant: int) -> bool:
+	if kind not in ["floor","wall"] or variant not in [0,1,2]: return false
+	if variant == 0: return true
+	if variant == 1: return owned("renovation")
+	return level("garden") >= 7 if kind == "floor" else maxi(level("counter"),level("shelf")) >= 7
+
+func select_decor(kind: String, variant: int) -> bool:
+	if not decor_unlocked(kind,variant): return false
+	s.decor[kind] = variant
+	s.decor["manual_"+kind] = true
+	dirty = true
+	return true
+
+func update_auto_decor():
+	for kind in ["floor","wall"]:
+		if s.decor["manual_"+kind]: continue
+		if decor_unlocked(kind,2): s.decor[kind] = 2
+		elif decor_unlocked(kind,1): s.decor[kind] = 1
 
 func level(id: String) -> int:
 	return int(s.levels.get(id, 1))
@@ -58,6 +86,7 @@ func level_up(id: String) -> bool:
 	if s.coins < cost: return false
 	s.coins -= cost
 	s.levels[id] = level(id) + 1
+	update_auto_decor()
 	first("first_level")
 	# Milestones load from JSON as floats, so compare the reached one as an int.
 	if milestones_reached(id) > 0 and int(cfg.milestones[milestones_reached(id) - 1]) == level(id):
@@ -174,6 +203,7 @@ func purchase(id: String) -> bool:
 			return false
 		s.coins -= int(p.cost)
 		s.owned[id] = true
+		update_auto_decor()
 		first("first_upgrade")
 		event("hire_"+id if id in ["gardener","brewer","cashier"] else "unlock_"+id)
 		if id == "renovation": event("renovation_purchase")
@@ -314,6 +344,11 @@ func valid(v: Variant) -> bool:
 		if not (v[key] is int or v[key] is float) or v[key] != floor(v[key]): return false
 	if int(v.crop) not in [0,1] or int(v.recipe) not in [0,1] or int(v.pot) not in [-1,0,1] or v.tutorial > 8 or v.queue > 3 + cfg.milestones.size(): return false
 	if not v.levels is Dictionary: return false
+	if not v.decor is Dictionary: return false
+	for kind in ["floor","wall"]:
+		var variant = v.decor.get(kind)
+		if not (variant is int or variant is float) or variant != floor(variant) or int(variant) not in [0,1,2]: return false
+		if not v.decor.get("manual_"+kind) is bool: return false
 	for id in STATIONS:
 		var n = v.levels.get(id)
 		if not (n is float or n is int) or n != floor(n) or n < 1 or n > cfg.max_level: return false

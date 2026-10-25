@@ -17,7 +17,7 @@ Android: install `builds/little-lux-debug.apk`. Package: `org.littlelux.demo`; a
 Sound toggles ambience and effects; short Android haptics accompany sales/upgrades. The gear menu’s Reset requires confirmation. No worker wages, seed cost, hidden rescue coins or forced session cutoff.
 
 ## Persistence
-Local `user://little_lux.json`, temporary file and backup. JSON is validated before replacement. Inventory, partial timers, choices, staffing, tutorial and mute setting are saved after transactions, every five seconds and on backgrounding. `user://events.jsonl` contains local milestones with elapsed fresh-run time. No event upload.
+Local `user://little_lux.json`, temporary file and backup. JSON is validated before replacement. Inventory, partial timers, décor choices, staffing, tutorial and mute setting are saved after transactions, every five seconds and on backgrounding. `user://events.jsonl` contains local milestones with elapsed fresh-run time. No event upload.
 
 On resuming, the same fixed-step simulation processes at most two hours. Only hired workers perform automatic actions; ingredients, chosen recipes and capacities still constrain production. A high-water timestamp clamps negative clock changes and prevents replaying the same interval. The result is saved before showing the welcome-back report; dismissing never awards more money. This is local prototype time handling, not tamper-proof validation. Atomic rename plus backup is used; sudden power loss is not proven safe.
 
@@ -26,11 +26,11 @@ Set `GODOT` to your Godot executable. `python3 tools/run_tests.py` runs economy/
 
 `python3 tools/build_android.py` uses the locally installed Godot toolchain and JDK; on another machine set `GODOT` and `JAVA_HOME`, install matching Godot Android export templates and configure the Android SDK/debug keystore in Godot Editor Settings. The project itself has no external content dependencies. The machine-specific fallback paths in tools are conveniences only.
 
-`tools/make_audio.py` reproduces every audio clip with Python's standard library. Art combines new transparent sprites in `game/art/` with layered scenery in `game/room.gd`. Source sheets, exact generation prompts and the approved reference are in `art/`; `tools/extract_art.py` reproduces sprite extraction.
+`tools/make_audio.py` reproduces every audio clip with Python's standard library. Art combines new transparent sprites in `game/art/` with layered scenery in `game/room.gd`. Source sheets, exact generation prompts and the approved reference are in `art/`; `tools/extract_art.py` and `tools/extract_tiers.py` reproduce sprite extraction.
 
 See `ART_DIRECTION.md`, `docs/ECONOMY.md`, `docs/VALIDATION.md`, `docs/HANDOFF.md` and `docs/evidence/`. Art and feel remain provisional pending user playtesting. Developer runs do not establish retention or revenue.
 
-## Current visual redesign (0.2.0)
+## Visual foundation (0.2.0)
 The approved mockup drives the new warm timber, cream tiles, purple cauldron, rounded characters, cream/navy header, lavender goal/tabs and green upgrade card. Native manual controls collapse after hiring their worker. Gear opens management and recipe choices; tapping a hire/upgrade objective opens its management panel. Prices and timing reflect actual game data. See `docs/REDESIGN.md` and `docs/evidence/redesign/` for current screenshots and validation. Earlier videos/screenshots below document the previous foundation.
 
 ## Station levels (0.3)
@@ -39,7 +39,12 @@ Garden beds, Cauldron, Counter and Shelf level 1–100 with exponential costs; l
 ## Polish pass
 Raised, squishy buttons; a counting coin balance; a goal banner with a progress bar toward its coin target; inventory chips; icon tabs; Team/Improve as sprite cards. The scene answers each action: leaf puffs on harvest, cauldron splash and squash on brew, an arcing bottle and shelf sparkle on stock, coin bursts with floating +N on sales, a sparkle burst on purchases and glints on anything ready to collect. During onboarding the next control to tap glows softly.
 
-The shop room, its furniture and customer paths sit on one oblique grid (`U`/`V` in `game/room.gd`) matched to the sprites. The garden tab is an outdoor scene: house front, picket fence, stone path, two raised beds of vector peppermint/moonflower, and a locked third plot. Feature roadmap: `docs/FEATURE_PROPOSALS.md`. The APK in `builds/` predates this pass; rebuild with `python3 tools/build_android.py`.
+The shop room, its furniture and customer paths sit on one oblique grid (`U`/`V` in `game/room.gd`) matched to the sprites. The garden tab is an outdoor scene: house front, picket fence, stone path, two raised beds of tiered sprite peppermint/moonflower, and a locked third plot. Feature roadmap: `docs/FEATURE_PROPOSALS.md`. The APK in `builds/` includes this pass.
+
+## Tiered asset suite (0.4.0)
+Thirty new transparent variants cover furniture, beds, crop plants, decorative foliage and both potion recipes. Levels 1, 3 and 7 visibly change the corresponding art. Six floor and wall finishes are previewable under **gear → Décor • floors & walls**; upgrades unlock new looks, and your selection is saved. See `docs/ASSET_CATALOG.md`, `docs/evidence/tiered/asset-catalog.png` and the source sheets in `art/source/tier-atlases/`.
+
+Regenerate and validate with `python3 tools/extract_tiers.py`, `python3 tools/make_decor.py`, `python3 tools/check_assets.py`, and `godot --path . -s res://tools/art_preview.gd -- --ui-test`.
 
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.

@@ -1,4 +1,5 @@
 extends Control
+const Art = preload("res://game/art_catalog.gd")
 var model
 var garden := false
 var clock := 0.0
@@ -42,6 +43,10 @@ func _ready():
 	for name in ["cauldron","shelf","counter","leaves","flowers","bed","bush","plant","gate","owner","brewer","cashier","gardener","customer0","customer1","departing","energy","dream"]:
 		var path="res://game/art/"+name+".png"
 		if ResourceLoader.exists(path): textures[name]=load(path)
+	for family in Art.FAMILIES:
+		for tier in range(1,4):
+			var name="%s_t%d" % [family,tier]
+			textures[name]=load("res://game/art/"+name+".png")
 	coin_tex=load("res://game/art/coin.svg")
 	# Fixed grass tufts so the lawn does not shimmer between frames.
 	var rng:=RandomNumberGenerator.new()
@@ -300,21 +305,34 @@ func crop_plant(p:Vector2,crop:int,stage:float,size:float):
 func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
 	var sc=w/471.0
 	var soil=center-Vector2(0,18*sc/.573)
-	sprite_bounce("bed",soil+Vector2(-3*sc,183*sc),w,key)
+	sprite_bounce(Art.name_for("bed",model.level("garden")),soil+Vector2(-3*sc,183*sc),w,key)
 	var long=Vector2(310,110)*sc
 	var deep=Vector2(-120,115)*sc
 	var stage=plot.progress/model.grow_time(int(plot.crop))
 	for b in [-.2,.22]:
 		for a in [-.3,0.0,.3]:
-			crop_plant(soil+long*a+deep*b+Vector2(0,6),int(plot.crop),stage,w*.13)
+			var at=soil+long*a+deep*b+Vector2(0,6)
+			if stage<.18: crop_plant(at,int(plot.crop),stage,w*.13)
+			else:
+				var family="moonflower" if int(plot.crop)==1 else "mint"
+				sprite(Art.name_for(family,model.level("garden")),at,w*.15*(.35+.65*stage))
 	if stage>=1: glints(soil-Vector2(0,w*.1),Vector2(w*.28,w*.05),key.length()*.3)
 
-func wall(a:Vector2,b:Vector2,h:float,face:=Color("ecd8c3"),low:=Color("d8c4b2")):
+func wall(a:Vector2,b:Vector2,h:float,face:=Color("ecd8c3"),low:=Color("d8c4b2"),trim:=Color("c98c62"),motif:="plain"):
 	poly([a,b,b-Vector2(0,h),a-Vector2(0,h)],face,true)
 	poly([a,b,b-Vector2(0,h*.29),a-Vector2(0,h*.29)],low)
 	draw_line(a-Vector2(0,h*.29),b-Vector2(0,h*.29),Color("f9e9d3"),2,true)
-	draw_line(a-Vector2(0,h),b-Vector2(0,h),Color("986447"),18,true)
-	draw_line(a-Vector2(0,h+3),b-Vector2(0,h+3),Color("c98c62"),11,true)
+	draw_line(a-Vector2(0,h),b-Vector2(0,h),trim.darkened(.35),18,true)
+	draw_line(a-Vector2(0,h+3),b-Vector2(0,h+3),trim,11,true)
+	if motif=="panel":
+		for t in [.25,.65]:
+			var q=a.lerp(b,t)-Vector2(0,h*.62)
+			draw_line(q-Vector2(0,24),q+Vector2(0,24),trim,2,true)
+	elif motif=="vine":
+		for t in [.2,.5,.8]:
+			var q=a.lerp(b,t)-Vector2(0,h*.24)
+			draw_line(q,q-Vector2(0,h*.46),Color("579162"),2,true)
+			for k in range(3): mint_leaf(q-Vector2(0,k*18+7),q+Vector2(10 if k%2 else -10,-k*18-17),4,Color("78a76d"))
 	for p in [a,b]: post(p,h)
 
 func post(p:Vector2,h:float):
@@ -358,12 +376,13 @@ func dashed(points:Array,c:Color):
 
 func draw_garden():
 	lawn()
+	var wall_style:Dictionary=Art.WALLS[int(model.s.decor.wall)]
 	# House front: one wall plane along U with an arched purple door.
 	var h0=giso(-1.9,0)
 	var h1=giso(9,0)
 	var wall_h=175.0
-	poly([h0,h1,h1-Vector2(0,wall_h),h0-Vector2(0,wall_h)],Color("a5dcc5"),true,Color("6fae94"))
-	poly([h0,h1,h1-Vector2(0,26),h0-Vector2(0,26)],Color("86c4aa"))
+	poly([h0,h1,h1-Vector2(0,wall_h),h0-Vector2(0,wall_h)],Color(wall_style.face),true,Color(wall_style.trim))
+	poly([h0,h1,h1-Vector2(0,26),h0-Vector2(0,26)],Color(wall_style.low))
 	var back=-V*2.6-Vector2(0,40)
 	var t0=h0-Vector2(0,wall_h)
 	var t1=h1-Vector2(0,wall_h)
@@ -395,8 +414,8 @@ func draw_garden():
 	for k in range(13):
 		for side in [-.5,.5]: stone(giso(side,k+.6),Vector2.ZERO)
 	for k in range(1,7): stone(giso(k+.3,8.1),Vector2.ZERO)
-	sprite("bush",Vector2(70,150),150)
-	sprite("bush",Vector2(-10,520),120)
+	sprite(Art.name_for("bush",model.level("garden")),Vector2(70,150),150)
+	sprite(Art.name_for("bush",model.level("garden")),Vector2(-10,520),120)
 	# Props by the house.
 	draw_barrel(giso(-2.3,.4))
 	draw_crate(giso(-1.25,.55),38)
@@ -424,7 +443,7 @@ func draw_garden():
 				person("owner",giso(.1,2.6),92)
 	if hired: person("owner",giso(.9,.9),80)
 	badge(bed_center(0)+Vector2(60,62),"garden")
-	sprite("bush",Vector2(520,640),140)
+	sprite(Art.name_for("bush",model.level("garden")),Vector2(520,640),140)
 	picket_fence(giso(6.6,6),giso(6.6,13),8)
 
 func sign_post(p:Vector2,crop:int):
@@ -482,28 +501,37 @@ func draw_sign(p:Vector2):
 
 func draw_shop():
 	var renovated=model.owned("renovation")
+	var floor_style:Dictionary=Art.FLOORS[int(model.s.decor.floor)]
+	var wall_style:Dictionary=Art.WALLS[int(model.s.decor.wall)]
 	lawn()
 	# Outside, beyond the back wall: the two herb beds and stepping stones.
 	for p in [Vector2(372,170),Vector2(404,150),Vector2(436,132)]: oval(p,Vector2(14,6),Color("dad3c2"))
-	sprite("bush",Vector2(210,40),130)
-	sprite("bush",Vector2(560,90),150)
+	sprite(Art.name_for("bush",model.level("garden")),Vector2(210,40),130)
+	sprite(Art.name_for("bush",model.level("garden")),Vector2(560,90),150)
 	for i in range(2): garden_bed(bed_center(i),150,model.s.plots[i],"bed"+str(i))
 	# Floor on the shared grid.
-	var tile_a=Color("f0e1f6") if renovated else Color("fae7cb")
-	var tile_b=Color("f8eefb") if renovated else Color("f6e1c2")
+	var tile_a=Color(floor_style.a)
+	var tile_b=Color(floor_style.b)
 	poly(quad(iso(0,0),U*ROOM_U,V*ROOM_V),tile_a)
 	for u in range(int(ROOM_U)):
 		for v in range(int(ROOM_V)):
 			if (u+v)%2: poly(quad(iso(u,v),U,V),tile_b)
-	var line=Color("e2cdee") if renovated else Color("e5ceb0")
+			if (u+v)%5==0 and floor_style.motif=="diamond":
+				var centre=iso(u+.5,v+.5)
+				poly([centre+Vector2(0,-5),centre+Vector2(6,0),centre+Vector2(0,5),centre+Vector2(-6,0)],Color(Color("b995e4"),.45))
+			elif (u+v)%5==0 and floor_style.motif=="leaf":
+				var centre=iso(u+.5,v+.5)
+				mint_leaf(centre-Vector2(4,3),centre+Vector2(5,-5),3,Color(Color("70aa6f"),.4))
+	var line=Color(floor_style.line)
 	for u in range(int(ROOM_U)+1): draw_line(iso(u,0),iso(u,ROOM_V),line,1.2,true)
 	for v in range(int(ROOM_V)+1): draw_line(iso(0,v),iso(ROOM_U,v),line,1.2,true)
-	var face=Color("f3e4f0") if renovated else Color("ecd8c3")
-	var low=Color("dccbe6") if renovated else Color("d8c4b2")
-	wall(iso(0,ROOM_V),iso(0,0),112,face,low)
-	wall(iso(0,0),iso(3.6,0),112,face,low)
+	var face=Color(wall_style.face)
+	var low=Color(wall_style.low)
+	var trim=Color(wall_style.trim)
+	wall(iso(0,ROOM_V),iso(0,0),112,face,low,trim,wall_style.motif)
+	wall(iso(0,0),iso(3.6,0),112,face,low,trim,wall_style.motif)
 	sprite("gate",iso(4.25,0)+Vector2(0,8),92)
-	wall(iso(4.9,0),iso(ROOM_U,0),112,face,low)
+	wall(iso(4.9,0),iso(ROOM_U,0),112,face,low,trim,wall_style.motif)
 	badge(bed_center(0)+Vector2(-62,-6),"garden")
 	if renovated:
 		for i in range(9):
@@ -515,8 +543,8 @@ func draw_shop():
 		poly(quad(board,U*1.9,Vector2(0,30)),Color("7d52c9"),true,Color("5b3a9e"))
 		text(board+Vector2(11,26),"Little Lux",15,Color("fff7eb"))
 	# Back row: shelf against the back wall, cauldron in the corner.
-	sprite("plant",iso(5.6,.8),46)
-	sprite_bounce("shelf",iso(7,1),150,"shelf")
+	sprite(Art.name_for("plant",model.level("garden")),iso(5.6,.8),46)
+	sprite_bounce(Art.name_for("shelf",model.level("shelf")),iso(7,1),150,"shelf")
 	shelf_bottles(iso(7,1),150)
 	badge(iso(7,1)+Vector2(-48,-24),"shelf")
 	var cauldron=iso(1.7,2.8)
@@ -525,7 +553,7 @@ func draw_shop():
 	if model.s.pot!=-1:
 		oval(cauldron-Vector2(0,24),Vector2(66,28),Color("b38bff"))
 		oval(cauldron-Vector2(0,24),Vector2(61,24),Color("fff6ff"))
-	sprite_bounce("cauldron",cauldron,140,"cauldron")
+	sprite_bounce(Art.name_for("cauldron",model.level("cauldron")),cauldron,140,"cauldron")
 	if model.s.ready: glints(cauldron-Vector2(0,85),Vector2(45,12),.2)
 	badge(cauldron+Vector2(0,-2),"cauldron")
 	if model.s.pot!=-1:
@@ -538,7 +566,7 @@ func draw_shop():
 	sprite("flowers",iso(3.1,5),92)
 	if model.owned("brewer") or model.s.pot==-1: person("owner",iso(5.6+sin(clock*.6)*.35,4),90)
 	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70)
-	sprite_bounce("counter",iso(9.8,5),206,"counter")
+	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter")
 	badge(iso(9.8,5)-Vector2(-20,36),"counter")
 	var inside=[]
 	var outside=[]
@@ -548,8 +576,8 @@ func draw_shop():
 	inside.sort_custom(func(a,b):return iso(a.g.x,a.g.y).y<iso(b.g.x,b.g.y).y)
 	for c in inside: person("departing" if departures.has(c) else "customer"+str(c.variant),iso(c.g.x,c.g.y),70)
 	# Front wall with an archway, then the street side.
-	wall(iso(0,ROOM_V),iso(DOOR_L,ROOM_V),91,face,low)
-	wall(iso(DOOR_R,ROOM_V),iso(ROOM_U,ROOM_V),91,face,low)
+	wall(iso(0,ROOM_V),iso(DOOR_L,ROOM_V),91,face,low,trim,wall_style.motif)
+	wall(iso(DOOR_R,ROOM_V),iso(ROOM_U,ROOM_V),91,face,low,trim,wall_style.motif)
 	var al=iso(DOOR_L,ROOM_V)-Vector2(0,100)
 	var ar=iso(DOOR_R,ROOM_V)-Vector2(0,100)
 	var apex=(al+ar)/2-Vector2(0,34)
@@ -559,9 +587,9 @@ func draw_shop():
 	poly(quad(iso(7.2,9.35),U*1.5,V*1.1),Color("d9b082"),true)
 	for c in outside: person("departing" if departures.has(c) else "customer"+str(c.variant),iso(c.g.x,c.g.y),70)
 	draw_sign(iso(5.3,9.9))
-	sprite("plant",iso(6.2,9.5),44)
-	sprite("plant",iso(9.95,9.55),52)
-	for p in [Vector2(28,600),Vector2(95,640),Vector2(400,700),Vector2(530,690)]: sprite("bush",p,115)
+	sprite(Art.name_for("plant",model.level("garden")),iso(6.2,9.5),44)
+	sprite(Art.name_for("plant",model.level("garden")),iso(9.95,9.55),52)
+	for p in [Vector2(28,600),Vector2(95,640),Vector2(400,700),Vector2(530,690)]: sprite(Art.name_for("bush",model.level("garden")),p,115)
 
 func shelf_bottles(base:Vector2,w:float):
 	# Bottles stand on the shelf's two boards, following the boards' slope.
@@ -576,7 +604,8 @@ func shelf_bottles(base:Vector2,w:float):
 		var a=Vector2(70,158+r*103)
 		var b=Vector2(250,207+r*103)
 		var p=origin+a.lerp(b,(k+.5)/per_row)*sc
-		sprite("dream" if i<int(model.s.stock[1]) else "energy",p,bw)
+		var family="dream" if i<int(model.s.stock[1]) else "energy"
+		sprite(Art.name_for(family,model.level("cauldron")),p,bw)
 
 func draw_effects():
 	for q in particles:
@@ -615,6 +644,6 @@ func _draw():
 		# Arc the new bottle from cauldron to shelf.
 		var t=clampf((1.2-pulse)/.6,0,1)
 		var p=iso(1.7,2.8).lerp(iso(7,1),t)-Vector2(0,110+sin(t*PI)*70)
-		if t<1: sprite("dream" if model.s.recipe else "energy",p,31)
+		if t<1: sprite(Art.name_for("dream" if model.s.recipe else "energy",model.level("cauldron")),p,31)
 	draw_effects()
 	draw_set_transform(Vector2.ZERO)

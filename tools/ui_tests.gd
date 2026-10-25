@@ -79,6 +79,16 @@ func run():
 	check(app.selected_station=="counter" and "Counter" in app.card_title.text,"tapping the counter selects its station")
 	check(app.coins_label.text=="0","coin header displays integer balance")
 	check(app.room.clip_contents and app.room.size.y>=340,"scene stays clipped inside responsive scene area")
+	app.show_decor()
+	check(app.purchase_buttons["decor_floor_1"].disabled and app.purchase_buttons["decor_floor_0"].disabled,"decor menu shows locked and selected floor choices")
+	app.model.s.coins=320
+	app.buy("renovation")
+	app.refresh()
+	check(app.model.s.decor.floor==1 and app.model.s.decor.wall==1,"renovation changes visible architecture selection")
+	await process_frame
+	await app.tap(app.purchase_buttons["decor_floor_0"])
+	check(app.model.s.decor.floor==0 and app.model.s.decor.wall==1,"touch choice switches only the floor")
+	check(app.room.textures.has("cauldron_t3") and app.room.textures.has("moonflower_t3"),"master furniture and plants are loaded into the playable scene")
 	app.sound.set_muted(true)
 	await create_timer(0.4).timeout
 	app.queue_free()
