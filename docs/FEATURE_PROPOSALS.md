@@ -22,6 +22,8 @@ Goal: chart on Google Play Games. This document covers where the game stands tod
 
 ## Phase 1 — make it a real idle game (retention core)
 
+**Status (v0.5): built.** All seven items are in the game; numbers are in `docs/ECONOMY.md`. Achievements are local for now. Play Games Services comes in Phase 2.
+
 These turn a 4-minute demo into a game that lasts weeks. Build them before anything else.
 
 1. **Leveled stations with exponential costs.** The cauldron, each bed, the shelf, the counter and each worker get levels 1–100. Cost grows ×1.12–1.18 per level, and output grows. Every 10/25/50 levels a milestone gives ×2 output with a visible star burst. The card under the scene already shows "Lv. N → next", so this fits the UI as-is.

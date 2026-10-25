@@ -47,3 +47,16 @@ A station's multiplier is `(1 + level_speed × (level−1)) × 2^milestones`. At
 The chain is min(herbs, potions, customers) × price, so the bottleneck moves as you level. An analytic payback-greedy simulation, starting after the one-time upgrades and assuming constant play, reaches all stations at Lv 10 in about 10 min, Lv 25 in about 17 min, Lv 50 in about 2.2 h and Lv 75 in about 20 h. Lv 100 is deliberately far off, which leaves room for prestige. The offline cap stays at two hours.
 
 Saves are now version 2. A version 1 save migrates on load with every station at level 1.
+
+## Phase 1 systems (save version 4)
+**Recipe Book.** Eight recipes unlock in order: Energy Brew (free), Dreamdrop 48, Calm Tea 250, Fire Tonic 900, Frost Elixir 3K, Starlight Draught 10K, Phoenix Draught 35K and Aurora Elixir 120K. Base prices run from 8 to 400, and brew times from 3 to 12 s. Calm Tea, Phoenix and Aurora need two or three herbs. Unlocking a recipe selects it. Customers always take the most valuable potion on the shelf.
+
+**Crops and beds.** There are five crops (Peppermint 6 s, Moonflower 8 s, Ember root 10 s, Frost fern 12 s and Starbloom 15 s), each yielding 2. On every replant, a bed picks the needed crop with the lowest supply (bin plus what other beds are growing ÷ amount needed). Switching recipes rebalances the beds for free. Beds 3 to 6 cost 150, 1.5K, 12K and 90K, and you buy one by tapping it in the garden.
+
+**Special visitors.** About every 45 s there is a 60% chance of a visitor, who waits 30 s. Special orders want one unlocked potion and pay ×3. VIPs (30% once Sol is hired) take the best potion and pay ×10. You tap the visitor to serve them. The dice come from the game clock, so offline catch-up matches live play.
+
+**Offline.** The base cap is 2 h. The Night-owl lantern (2K) raises it to 4 h and the Moon clock (25K) to 8 h. The welcome card reports harvests, brews and sales. On desktop, 8 h of catch-up simulates in about 2.7 s, because derived timings are cached for each run of ticks.
+
+**Daily goals.** Three goals a day are picked from the date. Targets scale with 1 + total station levels ÷ 12. The reward is 4× the cheapest next level-up (doubled for levelling and special-visitor goals). The login streak pays the base reward × day (1–7), restarts after a missed day, and cycles after day 7. There are 15 achievements based on lifetime stats.
+
+**Prestige.** Once any station reaches Lv. 25, opening a branch converts this run's earnings into ⌊√(earned ÷ 50K)⌋ Moon Stars, and each star adds 10% to potion prices. Coins, stations, team, upgrades, recipes and beds reset; stars, achievements, stats, daily goals and the streak carry over.
