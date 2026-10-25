@@ -66,7 +66,7 @@ func _initialize():
 	online.simulate(60)
 	offline.s.timestamp=1000.0
 	offline.offline(1060)
-	for key in ["coins","herbs","stock","plots","pot","brew_progress","ready","queue","arrival","service","serving","tutorial"]:
+	for key in ["coins","herbs","stock","plots","pot","brew_progress","ready","queue","arrival","service","serving","tutorial","visitor","visitor_timer"]:
 		check(online.s[key]==offline.s[key],"online/offline same rules: "+key)
 	var coins=offline.s.coins
 	offline.offline(1060)
@@ -274,5 +274,32 @@ func _initialize():
 	v3.crop=1
 	v3=m.migrate(v3)
 	check(m.valid(v3) and v3.herbs==H([3,4]) and v3.stock==P([2,1]) and not v3.has("crop"),"version 3 save migrates to the Recipe Book")
+	# Special visitors.
+	m=E.new()
+	m.simulate(60)
+	check(m.s.visitor.is_empty(),"no special visitors before Dreamdrop or Sol")
+	m.s.owned.recipe=true
+	m.s.visitor={"kind":"request","recipe":1,"left":30.0}
+	m.s.stock=P([3])
+	check(not m.serve_visitor() and m.visitor_potion()==-1,"request waits for its exact potion")
+	m.s.stock=P([3,1])
+	check(m.serve_visitor() and m.s.coins==39 and m.s.stock==P([3]) and m.s.visitor.is_empty(),"request pays three times the potion price")
+	m.s.visitor={"kind":"vip","recipe":0,"left":30.0}
+	m.s.stock=P([1,0,1])
+	check(m.serve_visitor() and m.s.coins==39+300 and m.s.stock==P([1]),"VIP takes the best potion for ten times its price")
+	m.s.visitor={"kind":"vip","recipe":0,"left":0.5}
+	m.simulate(1)
+	check(m.s.visitor.is_empty(),"unserved visitors leave when their wait ends")
+	m=E.new()
+	m.s.owned={"recipe":true,"cashier":true}
+	m.simulate(600)
+	check(m.events.any(func(e): return e.event.begins_with("missed_")),"visitors arrive on their own over time")
+	invalid=m.s.duplicate(true)
+	invalid.visitor={"kind":"dragon","recipe":0,"left":3}
+	check(not m.valid(invalid),"unknown visitor kind rejected")
+	var no_visitor=JSON.parse_string(JSON.stringify(E.new().s))
+	no_visitor.erase("visitor")
+	no_visitor.erase("visitor_timer")
+	check(m.valid(m.migrate(no_visitor)) and no_visitor.visitor.is_empty(),"early version 4 saves gain visitor defaults")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

@@ -5,6 +5,7 @@ var s: Dictionary
 var events: Array = []
 var feedback: Array = []
 var dirty := false
+var last_visitor_pay := 0
 const VERSION := 4
 const MAX_PLOTS := 6
 const STATIONS := ["garden","cauldron","counter","shelf"]
@@ -13,11 +14,15 @@ func _init():
 	fresh()
 
 func fresh():
-	s = {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
-	s.stock[0] = int(cfg.starting_stock)
+	s = fresh_state()
 	events.clear()
 	feedback.clear()
 	dirty = true
+
+func fresh_state() -> Dictionary:
+	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	state.stock[0] = int(cfg.starting_stock)
+	return state
 
 func zeros(n: int) -> Array:
 	var a := []
@@ -53,6 +58,11 @@ func migrate(v: Variant) -> Variant:
 			if v.get(key) is Array:
 				while v[key].size() < size: v[key].append(0)
 		v.erase("crop")
+	# Later version 4 additions arrive with their fresh-game defaults.
+	if v is Dictionary and (v.get("version") is float or v.get("version") is int) and int(v.version) == VERSION:
+		var defaults := fresh_state()
+		for key in defaults:
+			if not v.has(key): v[key] = defaults[key]
 	return v
 
 func decor_unlocked(kind: String, variant: int) -> bool:
@@ -209,6 +219,51 @@ func seed_for(index: int) -> int:
 			best = c
 	return best
 
+# Deterministic dice from the game clock keep offline catch-up identical to play.
+func roll(salt: int) -> float:
+	return float(absi(hash(int(s.elapsed * 10) * 31 + salt)) % 10000) / 10000.0
+
+func spawn_visitor():
+	var kinds := []
+	if owned("recipe"): kinds.append("request")
+	if owned("cashier"): kinds.append("vip")
+	if kinds.is_empty() or roll(1) > cfg.visitors.chance: return
+	var kind: String = kinds[0]
+	if kinds.size() > 1 and roll(2) < cfg.visitors.vip_share: kind = "vip"
+	var unlocked := []
+	for r in range(cfg.recipes.size()):
+		if recipe_unlocked(r): unlocked.append(r)
+	var want: int = unlocked[int(roll(3) * unlocked.size()) % unlocked.size()]
+	s.visitor = {"kind":kind,"recipe":want,"left":float(cfg.visitors.wait)}
+	feedback.append("visitor")
+
+# Which potion the special visitor would take right now, or -1.
+func visitor_potion() -> int:
+	if s.visitor.is_empty(): return -1
+	if s.visitor.kind == "request": return int(s.visitor.recipe) if s.stock[int(s.visitor.recipe)] > 0 else -1
+	for k in range(s.stock.size() - 1, -1, -1):
+		if s.stock[k] > 0: return k
+	return -1
+
+func visitor_pay() -> int:
+	var r := visitor_potion()
+	if r < 0: r = int(s.visitor.get("recipe", 0))
+	return price(r) * int(cfg.visitors.vip_pay if s.visitor.get("kind") == "vip" else cfg.visitors.request_pay)
+
+func serve_visitor() -> bool:
+	var r := visitor_potion()
+	if r < 0: return false
+	var pay := visitor_pay()
+	s.stock[r] -= 1
+	s.coins += pay
+	event("served_" + s.visitor.kind)
+	feedback.append("vip" if s.visitor.kind == "vip" else "request")
+	last_visitor_pay = pay
+	s.visitor = {}
+	s.visitor_timer = 0.0
+	dirty = true
+	return true
+
 func plot_cost() -> int:
 	var i: int = s.plots.size() - 2
 	return int(cfg.plot_costs[i]) if i < cfg.plot_costs.size() else 0
@@ -326,6 +381,16 @@ func tick(dt: float):
 	if owned("brewer"):
 		stock()
 		brew()
+	if s.visitor.is_empty():
+		s.visitor_timer += dt
+		if s.visitor_timer >= cfg.visitors.every:
+			s.visitor_timer = 0.0
+			spawn_visitor()
+	else:
+		s.visitor.left -= dt
+		if s.visitor.left <= 0:
+			event("missed_" + s.visitor.kind)
+			s.visitor = {}
 	s.arrival += dt
 	if s.arrival >= arrival_time():
 		s.arrival = 0.0
@@ -422,7 +487,11 @@ func valid(v: Variant) -> bool:
 	if not v is Dictionary or v.get("version") != VERSION: return false
 	for key in s:
 		if not v.has(key): return false
-	for key in ["coins","elapsed","timestamp","brew_progress","service","arrival","tutorial","queue"]:
+	if not v.visitor is Dictionary: return false
+	if not v.visitor.is_empty():
+		if not v.visitor.get("kind") in ["request","vip"] or not (v.visitor.get("recipe") is float or v.visitor.get("recipe") is int) or not (v.visitor.get("left") is float or v.visitor.get("left") is int): return false
+		if int(v.visitor.recipe) < 0 or int(v.visitor.recipe) >= cfg.recipes.size(): return false
+	for key in ["coins","elapsed","timestamp","brew_progress","service","arrival","tutorial","queue","visitor_timer"]:
 		if not (v[key] is float or v[key] is int) or not is_finite(float(v[key])) or v[key] < 0: return false
 	for key in ["herbs","stock"]:
 		if not v[key] is Array or v[key].size() != (cfg.crops.size() if key == "herbs" else cfg.recipes.size()): return false

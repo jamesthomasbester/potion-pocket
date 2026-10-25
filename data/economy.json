@@ -244,5 +244,13 @@
     1500,
     12000,
     90000
-  ]
+  ],
+  "visitors": {
+    "every": 45,
+    "chance": 0.6,
+    "wait": 30,
+    "request_pay": 3,
+    "vip_pay": 10,
+    "vip_share": 0.3
+  }
 }

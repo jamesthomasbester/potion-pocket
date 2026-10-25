@@ -284,6 +284,7 @@ func build_ui():
 		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
 			var id:String=room.station_at(event.position)
 			if id=="plot": buy_plot()
+			elif id=="visitor": serve_visitor()
 			elif id!="" and id!=selected_station:
 				selected_station=id
 				sound.play("tap")
@@ -484,6 +485,11 @@ func choose_recipe(r: int):
 		sound.play("tap")
 	elif model.unlock_recipe(r):
 		if purchase_cards.has("rc_%d" % r): pop(purchase_cards["rc_%d" % r],1.0,0.35,1.06)
+	after_action()
+
+func serve_visitor():
+	if storage.locked: return
+	if not model.serve_visitor(): sound.play("tap")
 	after_action()
 
 func buy_plot():
@@ -734,6 +740,10 @@ func refresh():
 	else:
 		primary.text="Stock potion" if s.ready else "Brewing…" if s.pot!=-1 else "Brew potion"
 		primary.disabled=(not s.ready and (s.pot!=-1 or not model.can_brew(int(s.recipe)))) or model.stock_count()>=model.capacity()
+		if not s.visitor.is_empty():
+			var vip:bool=s.visitor.kind=="vip"
+			var wants:String="any potion" if vip else model.cfg.recipes[int(s.visitor.recipe)].name
+			status.text=("★ VIP" if vip else "★ Special order")+" wants %s • tap them for %s" % [wants,model.short(model.visitor_pay())] if model.visitor_potion()>=0 else "%s wants %s • brew one before they leave" % ["A VIP" if vip else "A customer",wants]
 		secondary.text="Checkout busy" if s.serving else "Serve • %d waiting" % s.queue
 		secondary.disabled=s.serving or s.queue==0 or model.stock_count()==0
 	if styled_tab!=tab:
@@ -797,8 +807,8 @@ func flush_feedback():
 		room.effect=kind
 		room.pulse=1.2
 		room.burst(kind)
-		sound.play("upgrade" if kind in ["level","milestone"] else kind)
-		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone"]: Input.vibrate_handheld(40 if kind=="milestone" else 18,0.3)
+		sound.play("upgrade" if kind in ["level","milestone"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind=="visitor" else kind)
+		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone","vip","request"]: Input.vibrate_handheld(40 if kind in ["milestone","vip"] else 18,0.3)
 	model.feedback.clear()
 
 func persist():

@@ -35,6 +35,7 @@ const QUEUE = [Vector2(10.1,6.1),Vector2(8.8,6.25),Vector2(7.5,6.45),Vector2(6.3
 # Garden bed slots in purchase order: two either side of the lane, then down the right.
 const GARDEN_BEDS = [Vector2(-3.1,2.4),Vector2(2.3,5.4),Vector2(2.3,2.4),Vector2(2.3,8.4),Vector2(-2.9,5.3),Vector2(2.3,11.4)]
 const BED_W = 180.0
+const VISITOR = Vector2(7.0,2.5)
 const SPROUT = [["4a9a3f","78c55a"],["3f7f3a","5ea452"],["9c3d2c","d8643f"],["2f7f8a","6cc0c8"],["3f7f3a","5ea452"]]
 const GRASS = Color("a9d675")
 const GRASS_DARK = Color("8cc05f")
@@ -121,6 +122,7 @@ func station_pos(id:String) -> Vector2:
 # Which station a tap in this control's local space lands on, if any.
 func station_at(p:Vector2) -> String:
 	var q=(p-view_offset)/view_scale
+	if not garden and not model.s.visitor.is_empty() and Rect2(iso(VISITOR.x,VISITOR.y)-Vector2(45,175),Vector2(90,180)).has_point(q): return "visitor"
 	if garden:
 		var n:int=model.s.plots.size()
 		if n<GARDEN_BEDS.size() and q.distance_to(bed_center(n))<85: return "plot"
@@ -178,6 +180,11 @@ func burst(kind:String):
 				floaters.append({"p":at-Vector2(20,30),"t":0.0,"amount":amount,"text":"+"+model.short(amount),"dream":kind=="dream_sale","coin":true})
 			last_sale_fx=clock
 			if not garden: bounce["counter"]=.7
+		"request","vip":
+			var at=iso(VISITOR.x,VISITOR.y)-Vector2(0,110)
+			spray(at,16 if kind=="vip" else 10,"coin",Color.WHITE,220,-260,520,1.1)
+			spray(at,14,"star",Color("ffd765"),220,-140,140,1.0)
+			floaters.append({"p":at-Vector2(30,20),"t":0.0,"text":"+"+model.short(model.last_visitor_pay),"dream":kind=="vip","coin":true})
 		"level","milestone":
 			var at=station_pos(selected)-Vector2(0,70)
 			if garden or selected=="garden": at=bed_center(0)-Vector2(0,40)
@@ -510,6 +517,33 @@ func draw_sign(p:Vector2):
 	draw_line(b+Vector2(-6,-21),b+Vector2(6,-21),chalk,3,true)
 	draw_line(b+Vector2(-7,3),b+Vector2(7,3),Color(chalk,.6),1.6,true)
 
+func draw_visitor():
+	if model.s.visitor.is_empty(): return
+	var v:Dictionary=model.s.visitor
+	var p=iso(VISITOR.x,VISITOR.y)
+	var vip:bool=v.kind=="vip"
+	person("customer1" if vip else "customer0",p,72)
+	if vip:
+		var c=p-Vector2(0,104)
+		poly([c+Vector2(-15,8),c+Vector2(15,8),c+Vector2(18,-10),c+Vector2(8,-2),c+Vector2(0,-14),c+Vector2(-8,-2),c+Vector2(-18,-10)],Color("f2c94c"),true,Color("b9822a"))
+	# Speech bubble: wanted potion (or any, for a VIP), pay multiplier, countdown ring.
+	var ready:bool=model.visitor_potion()>=0
+	var b=p-Vector2(0,150)+Vector2(0,sin(clock*3)*2)
+	var st=StyleBoxFlat.new()
+	st.bg_color=Color("fff7eb")
+	st.border_color=Color("f2b632") if vip else Color("b58af1")
+	st.set_border_width_all(3)
+	st.set_corner_radius_all(16)
+	draw_style_box(st,Rect2(b-Vector2(46,24),Vector2(92,44)))
+	poly([b+Vector2(-7,19),b+Vector2(7,19),b+Vector2(0,30)],Color("fff7eb"))
+	var icon=Art.name_for(Art.POTIONS[model.visitor_potion() if vip and ready else int(v.recipe)],model.level("cauldron"))
+	if vip and not ready: icon="energy_t1"
+	sprite(icon,b+Vector2(-22,16),26,Color.WHITE if ready else Color(1,1,1,.45))
+	text(b+Vector2(-4,7),"×%d" % int(model.cfg.visitors.vip_pay if vip else model.cfg.visitors.request_pay),20,Color("b9822a") if vip else Color("7b3fd1"))
+	var left:float=clampf(v.left/float(model.cfg.visitors.wait),0,1)
+	draw_arc(b+Vector2(36,-14),9,-PI/2,-PI/2+TAU*left,20,Color("e46b5a") if left<.3 else Color("5fbf6a"),4,true)
+	if ready and fmod(clock,1.2)<.6: twinkle(b+Vector2(-40,-20),6,Color("fff1af"))
+
 func draw_shop():
 	var renovated=model.owned("renovation")
 	var floor_style:Dictionary=Art.FLOORS[int(model.s.decor.floor)]
@@ -576,6 +610,7 @@ func draw_shop():
 	sprite("leaves",iso(1.6,5),92)
 	sprite("flowers",iso(3.1,5),92)
 	if model.owned("brewer") or model.s.pot==-1: person("owner",iso(5.6+sin(clock*.6)*.35,4),90)
+	draw_visitor()
 	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70)
 	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter")
 	badge(iso(9.8,5)-Vector2(-20,36),"counter")
