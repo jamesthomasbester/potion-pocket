@@ -49,6 +49,9 @@ Regenerate and validate with `python3 tools/extract_tiers.py`, `python3 tools/ma
 ## Directional character animations (0.5.0)
 All seven characters now use 4-direction, 4-action transparent atlases. Travel uses actual facing and alternating stride frames; pickups and active station work have their own poses. Customers keep their identity from queue through departure. See `docs/CHARACTER_ANIMATIONS.md`, the `character-directions.png` / `character-actions.png` review sheets, and the Pixel 6 `pixel6-animations.mp4` capture in `docs/evidence/tiered/`.
 
+## Team levels, talents and branch themes (0.6.0)
+Pip, Momo and Sol level 1–100 in **Team** once hired: Pip speeds growth, Momo speeds brewing and Sol adds tips to every sale, each doubling at levels 10/25/50/75/100. Moon Stars now buy six permanent talents in **Improve**; spending a star never lowers its price bonus. Each branch has its own outdoor look (seaside, snow, night market lanterns, sunflowers, starfall). Preview every branch and both panels with `godot --path . -s res://tools/branch_preview.gd -- --ui-test`, which writes `docs/evidence/branches/`. Details: `docs/ECONOMY.md`.
+
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.
 - `builds/little-lux-project.zip`: self-contained source, docs and screenshot evidence (excludes the APK, videos and import cache).

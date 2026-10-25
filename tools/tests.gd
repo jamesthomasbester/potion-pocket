@@ -360,6 +360,60 @@ func _initialize():
 	check(m.valid(m.s),"post-branch save validates")
 	m.count("earned",200000)
 	check(m.pending_stars()==2,"stars count only this branch's earnings")
+	# Worker levels.
+	m=E.new()
+	m.s.coins=100000
+	check(not m.level_up("gardener") and m.level("gardener")==1,"an unhired helper cannot level")
+	m.purchase("gardener")
+	m.purchase("brewer")
+	m.purchase("cashier")
+	var coins_before=m.s.coins
+	check(m.level_cost("gardener")==100 and m.level_up("gardener") and m.s.coins==coins_before-100 and m.level("gardener")==2,"Pip levels for the listed cost")
+	check(is_equal_approx(m.grow_time(0),6.0/1.06),"Pip's level speeds growth")
+	m.level_up("brewer")
+	check(is_equal_approx(m.brew_time(0),3.0/1.06),"Momo's level speeds brewing")
+	m.s.levels.cashier=10
+	check(m.price(0)==int(round(8*(1+0.06*9)*2)),"Sol's tips grow per level and double at Lv. 10")
+	check(m.level("garden")==1 and m.stat("top_level")==1,"helper levels do not count toward station goals")
+	check(m.valid(m.s),"save with helper levels validates")
+	# Moon Star talents.
+	m=E.new()
+	check(not m.buy_talent("roots"),"talents need Moon Stars")
+	m.s.prestige.stars=4
+	check(m.buy_talent("roots") and m.talent("roots")==1 and m.stars_free()==3 and m.talent_cost("roots")==2,"first rank costs one star")
+	check(is_equal_approx(m.grow_time(0),6.0/1.1) and m.price(0)==int(round(8*1.4)),"talent speeds growth and spending keeps the star price bonus")
+	check(m.buy_talent("team") and m.buy_talent("team") and m.stars_free()==0 and not m.buy_talent("street"),"rank two costs two stars; no stars, no talent")
+	check(not m.buy_talent("nonsense"),"unknown talent rejected")
+	m.s.prestige.stars=40
+	for i in range(5): m.buy_talent("roots")
+	check(m.talent("roots")==5,"talent stops at its last rank")
+	m.buy_talent("night")
+	check(is_equal_approx(m.offline_cap(),7200.0+3600.0),"night shift extends the offline cap")
+	m.buy_talent("patrons")
+	m.s.owned.recipe=true
+	m.s.visitor={"kind":"request","recipe":0,"left":30.0}
+	check(m.visitor_pay()==int(m.price(0)*3*1.5),"generous patrons raise special-visitor pay")
+	m.s.visitor={}
+	check(m.valid(m.s),"save with talents validates")
+	m.s.levels.counter=25
+	m.s.prestige.run_earned=50000
+	check(m.open_branch() and m.owned("gardener") and m.owned("brewer") and not m.owned("cashier"),"loyal team rank 2 opens the branch with Pip and Momo")
+	check(m.talent("roots")==5 and m.talent("team")==2 and m.level("gardener")==1,"talents carry over; helper levels reset")
+	var bad=m.s.duplicate(true)
+	bad.prestige.stars=1
+	check(not m.valid(bad),"overspent talents rejected")
+	bad=m.s.duplicate(true)
+	bad.prestige.talents["roots"]=9
+	check(not m.valid(bad),"talent above its last rank rejected")
+	bad=m.s.duplicate(true)
+	bad.levels["brewer"]=0
+	check(not m.valid(bad),"invalid helper level rejected")
+	var older=E.new().s.duplicate(true)
+	older.prestige.erase("talents")
+	for id in ["gardener","brewer","cashier"]: older.levels.erase(id)
+	older=JSON.parse_string(JSON.stringify(older))
+	var migrated=E.new()
+	check(migrated.valid(migrated.migrate(older)) and migrated.migrate(older).prestige.talents.is_empty() and int(migrated.migrate(older).levels.gardener)==1,"save from before talents and helper levels loads")
 	# Chunked catch-up matches one-shot catch-up, and pausing midway loses nothing.
 	var whole=E.new()
 	whole.s.owned={"gardener":true,"brewer":true,"cashier":true,"offline_8":true}

@@ -20,6 +20,7 @@ var tufts: Array = []
 var selected := "cauldron"
 var view_offset := Vector2.ZERO
 var view_scale := 1.0
+var view_xform := Transform2D.IDENTITY
 var last_sale_fx := -10.0
 const INK = Color("191b43")
 var font = ThemeDB.fallback_font
@@ -40,9 +41,15 @@ const GARDEN_BEDS = [Vector2(-3.1,2.4),Vector2(2.3,5.4),Vector2(2.3,2.4),Vector2
 const BED_W = 180.0
 const VISITOR = Vector2(7.0,2.5)
 const SPROUT = [["4a9a3f","78c55a"],["3f7f3a","5ea452"],["9c3d2c","d8643f"],["2f7f8a","6cc0c8"],["3f7f3a","5ea452"]]
-const GRASS = Color("a9d675")
-const GRASS_DARK = Color("8cc05f")
 const STONE = Color("eadfc8")
+# One outdoor look per branch, in economy BRANCHES order: ground, tufts and a scenery touch.
+const THEMES = [
+	{"ground":"a9d675","tuft":"8cc05f","extra":""},
+	{"ground":"eedcae","tuft":"b9b46e","extra":"sea"},
+	{"ground":"eef3f8","tuft":"c3d1e2","extra":"snow"},
+	{"ground":"6f9468","tuft":"587a55","extra":"lanterns"},
+	{"ground":"b9d86c","tuft":"97b94f","extra":"sunflowers"},
+	{"ground":"b4bfe3","tuft":"929fcc","extra":"stars"}]
 
 func iso(u:float,v:float) -> Vector2: return SHOP_ORIGIN+U*u+V*v
 func giso(u:float,v:float) -> Vector2: return GARDEN_ORIGIN+U*u+V*v
@@ -244,14 +251,21 @@ func sprite(name:String,p:Vector2,w:float,tint:=Color.WHITE):
 	var h=w*tex.get_height()/tex.get_width()
 	draw_texture_rect(tex,Rect2(p-Vector2(w/2,h),Vector2(w,h)),false,tint)
 
-func sprite_bounce(name:String,p:Vector2,w:float,key:String):
+func sprite_bounce(name:String,p:Vector2,w:float,key:String,shear:=0.0):
 	var t:float=bounce.get(key,0.0)
 	var squash=sin(t*PI*3.0)*t*.12
 	if not textures.has(name): return
 	var tex:Texture2D=textures[name]
 	var sw=w*(1+squash)
 	var h=w*tex.get_height()/tex.get_width()*(1-squash)
+	if shear!=0.0: draw_set_transform_matrix(view_xform*shear_at(p,shear))
 	draw_texture_rect(tex,Rect2(p-Vector2(sw/2,h),Vector2(sw,h)),false)
+	if shear!=0.0: draw_set_transform_matrix(view_xform)
+
+# Vertical shear about p: verticals stay upright while the sprite's long
+# edges tilt by k, so painted furniture lines up with the floor grid.
+func shear_at(p:Vector2,k:float) -> Transform2D:
+	return Transform2D(Vector2(1,k),Vector2(0,1),Vector2(0,-k*p.x))
 
 func person(name:String,p:Vector2,w:=70.0,dir:=0,action:="idle",phase:=0.0):
 	oval(p-Vector2(0,3),Vector2(w*.48,9),Color(0.35,0.22,0.16,.16))
@@ -367,21 +381,39 @@ func crop_plant(p:Vector2,crop:int,stage:float,size:float):
 	var s=size*(.35+.65*clampf(stage,0,1))
 	rosette(p,s*(.9 if crop in [1,4] else 1.0),Color(SPROUT[crop][0]),Color(SPROUT[crop][1]))
 
-# A raised bed drawn from its soil centre, with a 3x2 grid of plants on top.
+# Soil corners (left, back, right, front) in each bed sprite's pixels, so
+# plants root inside the box instead of on its rim.
+const BED_SOIL = {"bed_t1":[Vector2(66,124),Vector2(141,58),Vector2(350,152),Vector2(259,213)],"bed_t2":[Vector2(68,136),Vector2(154,69),Vector2(354,162),Vector2(258,225)],"bed_t3":[Vector2(71,152),Vector2(183,77),Vector2(360,175),Vector2(252,239)]}
+# The bed art is painted steeper than the U axis; this shear levels its long side.
+const BED_SHEAR = -0.11
+const COUNTER_SHEAR = 0.1
+
+# A raised bed drawn from its centre, with a 3x2 grid of plants in the soil.
 func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
-	var sc=w/471.0
-	var soil=center-Vector2(0,18*sc/.573)
-	sprite_bounce(Art.name_for("bed",model.level("garden")),soil+Vector2(-3*sc,183*sc),w,key)
-	var long=Vector2(310,110)*sc
-	var deep=Vector2(-120,115)*sc
+	var name:String=Art.name_for("bed",model.level("garden"))
+	var tex:Texture2D=textures[name]
+	var sc=w/tex.get_width()
+	# Place the sprite so its soil centre lands on the bed's grid centre.
+	var mid:=Vector2.ZERO
+	for q in BED_SOIL[name]: mid+=q/4.0
+	var foot=center-(mid-Vector2(tex.get_width()/2.0,tex.get_height()))*sc
+	sprite_bounce(name,foot,w,key,BED_SHEAR)
+	var corners=[]
+	for q in BED_SOIL[name]:
+		var at=foot+(q-Vector2(tex.get_width()/2.0,tex.get_height()))*sc
+		corners.append(at+Vector2(0,BED_SHEAR*(at.x-foot.x)))
 	var stage=plot.progress/model.grow_time(int(plot.crop))
-	for b in [-.2,.22]:
-		for a in [-.3,0.0,.3]:
-			var at=soil+long*a+deep*b+Vector2(0,6)
-			if stage<.18: crop_plant(at,int(plot.crop),stage,w*.13)
-			else:
-				sprite(Art.name_for(Art.CROPS[int(plot.crop)],model.level("garden")),at,w*.15*(.35+.65*stage))
-	if stage>=1: glints(soil-Vector2(0,w*.1),Vector2(w*.28,w*.05),key.length()*.3)
+	# Back row first so front plants overlap the ones behind them.
+	for v in [.3,.72]:
+		for u in [.2,.5,.8]:
+			var at=soil_point(corners,u,v)
+			if stage<.18: crop_plant(at,int(plot.crop),stage,w*.12)
+			else: sprite(Art.name_for(Art.CROPS[int(plot.crop)],model.level("garden")),at,w*.14*(.35+.65*stage))
+	if stage>=1: glints(soil_point(corners,.5,.4)-Vector2(0,w*.06),Vector2(w*.26,w*.05),key.length()*.3)
+
+# u runs along the long side, v from the back edge to the front edge.
+func soil_point(c:Array,u:float,v:float) -> Vector2:
+	return c[1].lerp(c[2],u).lerp(c[0].lerp(c[3],u),v)
 
 func wall(a:Vector2,b:Vector2,h:float,face:=Color("ecd8c3"),low:=Color("d8c4b2"),trim:=Color("c98c62"),motif:="plain"):
 	poly([a,b,b-Vector2(0,h),a-Vector2(0,h)],face,true)
@@ -404,11 +436,54 @@ func post(p:Vector2,h:float):
 	draw_line(p,p-Vector2(0,h+9),Color("966144"),19,true)
 	draw_line(p-Vector2(3,0),p-Vector2(3,h+9),Color("bd8159"),12,true)
 
+func theme() -> Dictionary:
+	return THEMES[int(model.s.prestige.branches) % THEMES.size()]
+
 func lawn():
-	draw_rect(Rect2(Vector2(-400,-300),Vector2(1400,1300)),GRASS)
+	var th:=theme()
+	draw_rect(Rect2(Vector2(-400,-300),Vector2(1400,1300)),Color(th.ground))
+	var tuft:=Color(th.tuft)
 	for t in tufts:
-		draw_line(t,t+Vector2(-3,-7),GRASS_DARK,2,true)
-		draw_line(t+Vector2(3,0),t+Vector2(4,-8),GRASS_DARK,2,true)
+		draw_line(t,t+Vector2(-3,-7),tuft,2,true)
+		draw_line(t+Vector2(3,0),t+Vector2(4,-8),tuft,2,true)
+	match th.extra:
+		"sea":
+			# A strip of sea along the far edge, with drifting wave crests and shells.
+			poly([Vector2(-400,-300),Vector2(1000,-300),Vector2(1000,34),Vector2(-400,34)],Color("7cc6d6"))
+			poly([Vector2(-400,34),Vector2(1000,34),Vector2(1000,44),Vector2(-400,44)],Color("f6efd9"))
+			for k in range(10):
+				var x=fmod(k*64.0+clock*12.0,640.0)-50
+				draw_arc(Vector2(x,18+(k%2)*8),12,PI*1.1,PI*1.9,8,Color("e9f7fa"),3,true)
+			for i in range(0,tufts.size(),6): oval(tufts[i],Vector2(7,4),Color("f2b9a6"))
+		"snow":
+			for i in range(0,tufts.size(),2):
+				var q:Vector2=tufts[i]
+				var y=fmod(q.y+clock*28.0,700.0)-20
+				var at=Vector2(q.x+sin(clock+i)*8,y)
+				draw_circle(at,4.2,Color("b9c9de"))
+				draw_circle(at,3.2,Color.WHITE)
+		"lanterns":
+			for row in [[Vector2(-10,30),Vector2(560,4)],[Vector2(-10,640),Vector2(560,610)]]:
+				var a:Vector2=row[0]
+				var b:Vector2=row[1]
+				draw_line(a,b,Color("3e3a52"),2,true)
+				for k in range(1,9):
+					var p=a.lerp(b,k/9.0)+Vector2(0,10)
+					draw_circle(p,18,Color(1,.78,.35,.25))
+					oval(p,Vector2(9,12),Color("f4a640") if k%2 else Color("e4574a"))
+			for i in range(0,tufts.size(),7):
+				if sin(clock*2+i)>.2: draw_circle(tufts[i]+Vector2(sin(clock+i)*6,-14),2,Color("fff4b0"))
+		"sunflowers":
+			for i in range(0,tufts.size(),4):
+				var q:Vector2=tufts[i]
+				draw_line(q,q-Vector2(0,34),Color("5e9a3c"),4,true)
+				mint_leaf(q-Vector2(0,12),q+Vector2(12,-22),5,Color("6fae45"))
+				for k in range(10): draw_circle(q-Vector2(0,40)+Vector2.from_angle(k*TAU/10)*9,5.5,Color("f6c531"))
+				draw_circle(q-Vector2(0,40),7,Color("8a5a2b"))
+		"stars":
+			for i in range(0,tufts.size(),4):
+				var glow=.5+.5*sin(clock*1.6+i*1.7)
+				twinkle(tufts[i]+Vector2(0,-6),6+glow*5,Color(1,.96,.75,.5+glow*.5))
 
 func stone(c:Vector2,o:Vector2):
 	var a=c-U*.42-V*.42
@@ -512,8 +587,9 @@ func draw_garden():
 		pill(c+Vector2(-40,26),"Ready" if ready else "Growing",plot.progress/model.grow_time(int(plot.crop)),96,Color("5fbf6a"))
 		if i==0:
 			if hired:
-				person("gardener",c+Vector2(58,-8),80,0,actor_action("gardener",not ready),.4)
-				bubble(c+Vector2(34,-128),"Auto-harvest ON")
+				var pip=giso(-1.0,2.15)
+				person("gardener",pip,80,0,actor_action("gardener",not ready),.4)
+				bubble(pip+Vector2(-24,-120),"Auto-harvest ON")
 			else:
 				person("owner",giso(.1,2.6),88,1,actor_action("owner",not ready),.7)
 	if hired: person("owner",giso(.9,.9),80,1,actor_action("owner"))
@@ -633,16 +709,19 @@ func draw_shop():
 	wall(iso(0,0),iso(3.6,0),112,face,low,trim,wall_style.motif)
 	sprite("gate",iso(4.25,0)+Vector2(0,8),92)
 	wall(iso(4.9,0),iso(ROOM_U,0),112,face,low,trim,wall_style.motif)
-	badge(bed_center(0)+Vector2(-62,-6),"garden")
 	if renovated:
 		for i in range(9):
 			var p=iso(.5+i*1.6,0)-Vector2(0,96)
 			draw_line(p,p+U*1.6,Color("6d5a4a"),1.2,true)
 			draw_circle(p+U*.8+Vector2(0,6),4.5,Color("fff1af",.6+.4*sin(clock*3+i)))
-		var board=iso(1.4,0)-Vector2(0,86)
-		for k in [.2,.8]: draw_line(board+U*1.9*k-Vector2(0,12),board+U*1.9*k,Color("6d5a4a"),1.5,true)
-		poly(quad(board,U*1.9,Vector2(0,30)),Color("7d52c9"),true,Color("5b3a9e"))
-		text(board+Vector2(11,26),"Little Lux",15,Color("fff7eb"))
+		# Mounted on top of the back wall, clear of the brewer's head.
+		var board=iso(.25,0)-Vector2(0,146)
+		for k in [.2,.8]: draw_line(board+U*1.75*k+Vector2(0,30),board+U*1.75*k+Vector2(0,34),Color("6d5a4a"),4,true)
+		poly(quad(board,U*1.75,Vector2(0,30)),Color("7d52c9"),true,Color("5b3a9e"))
+		draw_set_transform_matrix(view_xform*shear_at(board,U.y/U.x))
+		text(board+Vector2(8,22),"Little Lux",15,Color("fff7eb"))
+		draw_set_transform_matrix(view_xform)
+	badge(bed_center(0)+Vector2(-62,-6),"garden")
 	# Back row: shelf against the back wall, cauldron in the corner.
 	sprite(Art.name_for("plant",model.level("garden")),iso(5.6,.8),46)
 	sprite_bounce(Art.name_for("shelf",model.level("shelf")),iso(7,1),150,"shelf")
@@ -672,7 +751,8 @@ func draw_shop():
 		person("owner",iso(u,v),90,direction(travel),"walk" if float(actor_timers.get("owner",0.0))<=0 else "pickup",.7)
 	draw_visitor()
 	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70,0,actor_action("cashier",model.s.serving),.8)
-	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter")
+	# The counter art is painted flatter than the floor; shear its long side onto U.
+	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter",COUNTER_SHEAR)
 	badge(iso(9.8,5)-Vector2(-20,36),"counter")
 	var inside=[]
 	var outside=[]
@@ -686,10 +766,12 @@ func draw_shop():
 	wall(iso(DOOR_R,ROOM_V),iso(ROOM_U,ROOM_V),91,face,low,trim,wall_style.motif)
 	var al=iso(DOOR_L,ROOM_V)-Vector2(0,100)
 	var ar=iso(DOOR_R,ROOM_V)-Vector2(0,100)
-	var apex=(al+ar)/2-Vector2(0,34)
-	for pair in [[al,apex],[apex,ar]]:
-		draw_line(pair[0],pair[1],Color("966144"),18,true)
-		draw_line(pair[0]-Vector2(0,3),pair[1]-Vector2(0,3),Color("c98c62"),10,true)
+	var arch=PackedVector2Array()
+	for k in range(17): arch.append(al.lerp(ar,k/16.0)-Vector2(0,28*sin(PI*k/16.0)))
+	draw_polyline(arch,Color("966144"),18,true)
+	var lip=PackedVector2Array()
+	for q in arch: lip.append(q-Vector2(0,3))
+	draw_polyline(lip,Color("c98c62"),10,true)
 	poly(quad(iso(7.2,9.35),U*1.5,V*1.1),Color("d9b082"),true)
 	for c in outside: person(customer_name(c),iso(c.g.x,c.g.y),70,int(c.get("dir",2)),customer_action(c),float(c.g.x)*.3)
 	draw_sign(iso(5.3,9.9))
@@ -743,10 +825,11 @@ func _draw():
 	var factor=minf(size.x/540.0,size.y/660.0)
 	var base_height=size.y/factor
 	# The scene is drawn past its 540x660 frame, so wider areas show more of it.
-	draw_rect(Rect2(Vector2.ZERO,size),GRASS)
+	draw_rect(Rect2(Vector2.ZERO,size),Color(theme().ground))
 	view_offset=Vector2((size.x-540*factor)*.5,maxf(0,(base_height-660)*.35*factor))
 	view_scale=factor
-	draw_set_transform(view_offset,0,Vector2.ONE*factor)
+	view_xform=Transform2D(0,Vector2.ONE*factor,0,view_offset)
+	draw_set_transform_matrix(view_xform)
 	if garden: draw_garden()
 	else: draw_shop()
 	if pulse>0 and effect=="stock" and not garden:

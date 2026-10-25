@@ -122,6 +122,26 @@ func run():
 	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.5)
 	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.2)
 	check(visitor.moving and visitor.dir==1 and app.room.customer_action(visitor)=="walk","customer resumes with direction-aware walking")
+	app.model.s.coins=1000
+	app.model.s.owned.gardener=true
+	app.show_upgrades(true)
+	await process_frame
+	check(app.purchase_buttons["lv_brewer"].disabled and app.purchase_buttons["lv_brewer"].text=="Hire first","an unhired helper's training card is locked")
+	var sc:ScrollContainer=app.upgrade_list.get_parent()
+	sc.ensure_control_visible(app.purchase_buttons["lv_gardener"])
+	await process_frame
+	await app.tap(app.purchase_buttons["lv_gardener"])
+	check(app.model.level("gardener")==2 and app.model.s.coins==900 and "Lv. 2" in app.purchase_labels["lv_gardener"][0].text,"Team card trains Pip for the listed cost")
+	app.model.s.prestige.stars=1
+	app.show_upgrades(false)
+	await process_frame
+	sc.ensure_control_visible(app.purchase_buttons["tl_roots"])
+	await process_frame
+	await app.tap(app.purchase_buttons["tl_roots"])
+	check(app.model.talent("roots")==1 and app.purchase_buttons["tl_roots"].disabled and app.purchase_buttons["tl_roots"].text=="★ 2","Improve card spends a Moon Star on a talent")
+	app.upgrade_layer.hide()
+	app.model.s.prestige.branches=1
+	check(app.room.theme().extra=="sea","second branch draws the seaside theme")
 	app.sound.set_muted(true)
 	await create_timer(0.4).timeout
 	app.queue_free()

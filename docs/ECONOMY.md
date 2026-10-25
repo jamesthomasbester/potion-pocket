@@ -60,3 +60,21 @@ Saves are now version 2. A version 1 save migrates on load with every station at
 **Daily goals.** Three goals a day are picked from the date. Targets scale with 1 + total station levels ÷ 12. The reward is 4× the cheapest next level-up (doubled for levelling and special-visitor goals). The login streak pays the base reward × day (1–7), restarts after a missed day, and cycles after day 7. There are 15 achievements based on lifetime stats.
 
 **Prestige.** Once any station reaches Lv. 25, opening a branch converts this run's earnings into ⌊√(earned ÷ 50K)⌋ Moon Stars, and each star adds 10% to potion prices. Coins, stations, team, upgrades, recipes and beds reset; stars, achievements, stats, daily goals and the streak carry over.
+
+## Team levels, talents and branch themes (v0.6)
+**Helper levels.** Once hired, Pip, Momo and Sol level from 1 to 100 in Team, with the station formula: base cost × 1.18^(level−1), +6% per level and ×2 at levels 10, 25, 50, 75 and 100. Base costs are Pip 100, Momo 140 and Sol 200. Pip divides grow time, Momo divides brew time, and Sol multiplies sale prices as tips, so special-visitor pay grows too. Helper levels do not count toward the Lv. 25 branch requirement or the station goal banner. They reset when you open a branch.
+
+**Moon Star talents.** Rank n of a talent costs n stars. Spent stars keep their +10% price bonus, because that bonus counts every star earned. Talents carry over to every branch.
+
+| Talent | Ranks | Each rank |
+|---|---:|---|
+| Quick roots | 5 | Beds grow 10% faster |
+| Bubbling cauldron | 5 | Brewing 10% faster |
+| Busy street | 5 | Customers arrive 10% sooner |
+| Generous patrons | 3 | Special visitors pay 50% more |
+| Night shift | 4 | Offline cap +1 h, on top of the lanterns |
+| Loyal team | 3 | New branches open with Pip, then Momo, then Sol hired |
+
+Buying every rank costs 67 stars. Saves stay at version 4: older saves load with no talents and every helper at Lv. 1.
+
+**Branch themes.** The six branches cycle through Little Lux (meadow), Seaside (sand and sea), Snowpeak (snowfall), Night Market (lanterns and fireflies), Sunflower and Starfall (twinkling stars). Only the outdoor scenery changes; décor choices still apply indoors.

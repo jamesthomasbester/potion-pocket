@@ -136,4 +136,43 @@ PASS streak cycles after day seven
 PASS achievements unlock from real progress
 PASS lifetime stats count sales
 PASS save with goals, stats and achievements validates
-RESULT 136 checks / 0 failures
+PASS stars need a station at level 25
+PASS a level 25 station and 1M earned open a branch
+PASS branch grants stars and moves on
+PASS coins, stations, upgrades and beds reset
+PASS achievements and lifetime stats stay
+PASS each Moon Star adds 10% to prices
+PASS post-branch save validates
+PASS stars count only this branch's earnings
+PASS an unhired helper cannot level
+PASS Pip levels for the listed cost
+PASS Pip's level speeds growth
+PASS Momo's level speeds brewing
+PASS Sol's tips grow per level and double at Lv. 10
+PASS helper levels do not count toward station goals
+PASS save with helper levels validates
+PASS talents need Moon Stars
+PASS first rank costs one star
+PASS talent speeds growth and spending keeps the star price bonus
+PASS rank two costs two stars; no stars, no talent
+PASS unknown talent rejected
+PASS talent stops at its last rank
+PASS night shift extends the offline cap
+PASS generous patrons raise special-visitor pay
+PASS save with talents validates
+PASS loyal team rank 2 opens the branch with Pip and Momo
+PASS talents carry over; helper levels reset
+PASS overspent talents rejected
+PASS talent above its last rank rejected
+PASS invalid helper level rejected
+PASS save from before talents and helper levels loads
+PASS chunked catch-up equals one-shot catch-up
+PASS mid catch-up pause saves
+PASS reopened save loads
+PASS pausing mid catch-up neither loses nor repeats time
+PASS deferred load leaves catch-up to the caller
+PASS fast-forward matches tick-by-tick: gardener
+PASS fast-forward matches tick-by-tick: gardener,brewer
+PASS fast-forward matches tick-by-tick: gardener,brewer,cashier,recipe
+PASS fast-forward matches tick-by-tick: cashier
+RESULT 175 checks / 0 failures
