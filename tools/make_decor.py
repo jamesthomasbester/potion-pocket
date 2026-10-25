@@ -3,7 +3,7 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]/'game/art/decor'
 root.mkdir(parents=True,exist_ok=True)
 styles=[
- ('floor_0','#fae7cb','#f6e1c2','#e5ceb0',''),
+ ('floor_0','#c98f5d','#bf8553','#9a643c','<path d="M35 28L93 68M20 38L78 78M50 18L108 58" stroke="#9a643c" stroke-width="3"/><path d="M60 45l8 5M38 52l8 5M82 40l8 5" stroke="#9a643c" stroke-width="3"/>'),
  ('floor_1','#eee1f7','#f8edfc','#d6bfed','<path d="M64 26l8 9-8 9-8-9z M20 67l5 5-5 5-5-5z M108 67l5 5-5 5-5-5z" fill="#b995e4"/>'),
  ('floor_2','#e4efd9','#f3f4dc','#bad19e','<path d="M57 37q-2-14 14-15-2 16-14 15zm6 30q10-13 22-4-13 11-22 4z" fill="#70aa6f"/>'),
  ('wall_0','#ecd8c3','#d8c4b2','#c98c62',''),

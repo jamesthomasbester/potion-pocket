@@ -9,7 +9,7 @@ const CROPS = ["mint","moonflower","ember","frost","starbloom"]
 const POTIONS = ["energy","dream","potion2","potion3","potion4","potion5","potion6","potion7"]
 
 const FLOORS = [
-	{"name":"Cream checker","a":"fae7cb","b":"f6e1c2","line":"e5ceb0","motif":"plain","unlock":"Included"},
+	{"name":"Oak planks","a":"c98f5d","b":"bf8553","line":"9a643c","motif":"planks","unlock":"Included"},
 	{"name":"Moon mosaic","a":"eee1f7","b":"f8edfc","line":"d6bfed","motif":"diamond","unlock":"Grand glow-up"},
 	{"name":"Botanical tile","a":"e4efd9","b":"f3f4dc","line":"bad19e","motif":"leaf","unlock":"Garden Lv. 7"}
 ]
