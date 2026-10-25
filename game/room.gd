@@ -32,6 +32,10 @@ const DOOR = Vector2(7.95,9.0)
 const DOOR_L = 6.6
 const DOOR_R = 9.3
 const QUEUE = [Vector2(10.1,6.1),Vector2(8.8,6.25),Vector2(7.5,6.45),Vector2(6.3,6.85),Vector2(5.2,7.3),Vector2(4.1,7.75),Vector2(3.0,8.15),Vector2(1.9,8.5)]
+# Garden bed slots in purchase order: two either side of the lane, then down the right.
+const GARDEN_BEDS = [Vector2(-3.1,2.4),Vector2(2.3,5.4),Vector2(2.3,2.4),Vector2(2.3,8.4),Vector2(-2.9,5.3),Vector2(2.3,11.4)]
+const BED_W = 180.0
+const SPROUT = [["4a9a3f","78c55a"],["3f7f3a","5ea452"],["9c3d2c","d8643f"],["2f7f8a","6cc0c8"],["3f7f3a","5ea452"]]
 const GRASS = Color("a9d675")
 const GRASS_DARK = Color("8cc05f")
 const STONE = Color("eadfc8")
@@ -104,7 +108,7 @@ func spray(at:Vector2,count:int,kind:String,color:Color,speed:=160.0,up:=-120.0,
 		particles.append({"p":at+Vector2(randf_range(-14,14),randf_range(-6,6)),"v":dir,"g":g,"drag":1.2,"life":life*randf_range(.7,1.1),"max":life,"kind":kind,"color":color,"r":randf_range(3,6)*(1.6 if kind=="leaf" else 1.0),"spin":randf_range(-6,6)})
 
 func bed_center(i:int) -> Vector2:
-	if garden: return giso(-3.5,3.3) if i==0 else giso(2.8,6.0)
+	if garden: return giso(GARDEN_BEDS[i].x,GARDEN_BEDS[i].y)
 	return Vector2(318,58) if i==0 else Vector2(458,96)
 
 func station_pos(id:String) -> Vector2:
@@ -118,8 +122,10 @@ func station_pos(id:String) -> Vector2:
 func station_at(p:Vector2) -> String:
 	var q=(p-view_offset)/view_scale
 	if garden:
-		for i in range(2):
-			if q.distance_to(bed_center(i))<150: return "garden"
+		var n:int=model.s.plots.size()
+		if n<GARDEN_BEDS.size() and q.distance_to(bed_center(n))<85: return "plot"
+		for i in range(n):
+			if q.distance_to(bed_center(i))<95: return "garden"
 		return ""
 	for id in ["counter","shelf","cauldron"]:
 		var half:Vector2={"cauldron":Vector2(75,150),"shelf":Vector2(80,165),"counter":Vector2(105,150)}[id]
@@ -146,8 +152,8 @@ func badge(p:Vector2,id:String):
 func burst(kind:String):
 	match kind:
 		"harvest":
-			for i in range(2):
-				spray(bed_center(i)-Vector2(0,30),12,"leaf",Color("8fd16a"),170,-190,300,1.1)
+			for i in range(model.s.plots.size() if garden else 2):
+				spray(bed_center(i)-Vector2(0,30),9,"leaf",Color("8fd16a"),150,-180,300,1.0)
 				bounce["bed"+str(i)]=1.0
 		"brew":
 			if not garden:
@@ -293,13 +299,10 @@ func blossom(p:Vector2,r:float):
 	draw_circle(p,r*.26,Color("f2c94c"))
 	draw_circle(p-Vector2(1,1),r*.1,Color("fff2b0"))
 
+# Seedlings are vector rosettes; grown plants switch to the tiered sprites.
 func crop_plant(p:Vector2,crop:int,stage:float,size:float):
 	var s=size*(.35+.65*clampf(stage,0,1))
-	if crop==1:
-		rosette(p,s*.9,Color("3f7f3a"),Color("5ea452"))
-		if stage>.55: blossom(p-Vector2(0,s*.75),s*.62*clampf((stage-.55)/.45,.35,1))
-	else:
-		rosette(p,s,Color("4a9a3f"),Color("78c55a"))
+	rosette(p,s*(.9 if crop in [1,4] else 1.0),Color(SPROUT[crop][0]),Color(SPROUT[crop][1]))
 
 # A raised bed drawn from its soil centre, with a 3x2 grid of plants on top.
 func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
@@ -314,8 +317,7 @@ func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
 			var at=soil+long*a+deep*b+Vector2(0,6)
 			if stage<.18: crop_plant(at,int(plot.crop),stage,w*.13)
 			else:
-				var family="moonflower" if int(plot.crop)==1 else "mint"
-				sprite(Art.name_for(family,model.level("garden")),at,w*.15*(.35+.65*stage))
+				sprite(Art.name_for(Art.CROPS[int(plot.crop)],model.level("garden")),at,w*.15*(.35+.65*stage))
 	if stage>=1: glints(soil-Vector2(0,w*.1),Vector2(w*.28,w*.05),key.length()*.3)
 
 func wall(a:Vector2,b:Vector2,h:float,face:=Color("ecd8c3"),low:=Color("d8c4b2"),trim:=Color("c98c62"),motif:="plain"):
@@ -410,39 +412,49 @@ func draw_garden():
 	poly(quad(w0-Vector2(4,-2),U*1.4+Vector2(8,4),Vector2(0,8)),Color("e9dccb"),true,Color("c9b9a4"))
 	# Fence along the back-left edge and lower right.
 	picket_fence(giso(-5.4,-3),giso(-5.4,9.5),14)
-	# Paths: a lane from the door and a branch between the right-hand plots.
+	# A stone lane from the door down between the bed columns.
 	for k in range(13):
 		for side in [-.5,.5]: stone(giso(side,k+.6),Vector2.ZERO)
-	for k in range(1,7): stone(giso(k+.3,8.1),Vector2.ZERO)
 	sprite(Art.name_for("bush",model.level("garden")),Vector2(70,150),150)
 	sprite(Art.name_for("bush",model.level("garden")),Vector2(-10,520),120)
 	# Props by the house.
 	draw_barrel(giso(-2.3,.4))
 	draw_crate(giso(-1.25,.55),38)
-	draw_crate(giso(2.8,1.5),62)
-	draw_watering_can(giso(-5.0,1.2))
-	# Locked expansion plot.
-	var lc=giso(2.4,10.2)
-	var lp=quad(lc-U*1.55-V*1.0,U*3.1,V*2.0)
-	poly(lp,Color(1,1,1,.18))
-	dashed(lp,Color(1,1,1,.85))
-	padlock(lc)
+	draw_watering_can(giso(-5.8,0.4))
+	# The next purchasable plot: dashed outline, padlock and its price.
+	var count:int=model.s.plots.size()
+	if count<GARDEN_BEDS.size():
+		var lc=bed_center(count)
+		var lp=quad(lc-U*1.05-V*.75,U*2.1,V*1.5)
+		poly(lp,Color(1,1,1,.2))
+		dashed(lp,Color(1,1,1,.9))
+		padlock(lc-Vector2(0,6))
+		var cost="%s" % model.short(model.plot_cost())
+		var w=font.get_string_size(cost,HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+34
+		var st=StyleBoxFlat.new()
+		st.bg_color=Color("fff7eb")
+		st.set_corner_radius_all(12)
+		draw_style_box(st,Rect2(lc+Vector2(-w/2,16),Vector2(w,26)))
+		draw_texture_rect(coin_tex,Rect2(lc+Vector2(-w/2+6,19),Vector2(20,20)),false)
+		text(lc+Vector2(-w/2+29,35),cost,16)
 	var hired=model.owned("gardener")
-	for i in range(2):
+	var order=range(count)
+	order.sort_custom(func(a,b):return bed_center(a).y<bed_center(b).y)
+	for i in order:
 		var c=bed_center(i)
-		garden_bed(c,270 if i==0 else 285,model.s.plots[i],"bed"+str(i))
 		var plot=model.s.plots[i]
+		garden_bed(c,BED_W,plot,"bed"+str(i))
 		var ready=plot.progress>=model.grow_time(int(plot.crop))
-		sign_post(c+Vector2(-118,22) if i==0 else c+Vector2(-60,62),int(plot.crop))
-		pill(c+Vector2(-84,50) if i==0 else c+Vector2(-20,60),"Harvest ready" if ready else "Growing",plot.progress/model.grow_time(int(plot.crop)),130,Color("5fbf6a"))
+		sign_post(c+Vector2(-82,14),int(plot.crop))
+		pill(c+Vector2(-40,26),"Ready" if ready else "Growing",plot.progress/model.grow_time(int(plot.crop)),96,Color("5fbf6a"))
 		if i==0:
 			if hired:
-				person("gardener",c+Vector2(70,-14),92)
-				bubble(c+Vector2(40,-150),"Auto-harvest ON")
+				person("gardener",c+Vector2(58,-8),80)
+				bubble(c+Vector2(34,-128),"Auto-harvest ON")
 			else:
-				person("owner",giso(.1,2.6),92)
+				person("owner",giso(.1,2.6),88)
 	if hired: person("owner",giso(.9,.9),80)
-	badge(bed_center(0)+Vector2(60,62),"garden")
+	badge(bed_center(0)+Vector2(70,40),"garden")
 	sprite(Art.name_for("bush",model.level("garden")),Vector2(520,640),140)
 	picket_fence(giso(6.6,6),giso(6.6,13),8)
 
@@ -454,8 +466,7 @@ func sign_post(p:Vector2,crop:int):
 	st.set_border_width_all(2)
 	st.set_corner_radius_all(5)
 	draw_style_box(st,Rect2(p+Vector2(-17,-58),Vector2(34,34)))
-	if crop==1: blossom(p-Vector2(0,41),10)
-	else: mint_leaf(p-Vector2(4,30),p-Vector2(-6,52),6,Color("5aa64a"))
+	sprite(Art.CROPS[crop]+"_t1",p-Vector2(0,27),28)
 
 func draw_barrel(p:Vector2):
 	oval(p,Vector2(22,8),Color(0.25,0.15,0.08,.22))
@@ -595,7 +606,11 @@ func shelf_bottles(base:Vector2,w:float):
 	# Bottles stand on the shelf's two boards, following the boards' slope.
 	var sc=w/359.0
 	var origin=base-Vector2(179.5,377)*sc
-	var count=mini(model.stock_count(),12)
+	# Most valuable potions first, matching the order customers buy them.
+	var kinds=[]
+	for r in range(model.s.stock.size()-1,-1,-1):
+		for n in range(int(model.s.stock[r])): kinds.append(r)
+	var count=mini(kinds.size(),12)
 	var per_row=3 if model.capacity()<=6 else 6
 	var bw=30.0 if per_row==3 else 21.0
 	for i in range(count):
@@ -604,8 +619,7 @@ func shelf_bottles(base:Vector2,w:float):
 		var a=Vector2(70,158+r*103)
 		var b=Vector2(250,207+r*103)
 		var p=origin+a.lerp(b,(k+.5)/per_row)*sc
-		var family="dream" if i<int(model.s.stock[1]) else "energy"
-		sprite(Art.name_for(family,model.level("cauldron")),p,bw)
+		sprite(Art.name_for(Art.POTIONS[kinds[i]],model.level("cauldron")),p,bw)
 
 func draw_effects():
 	for q in particles:
@@ -644,6 +658,6 @@ func _draw():
 		# Arc the new bottle from cauldron to shelf.
 		var t=clampf((1.2-pulse)/.6,0,1)
 		var p=iso(1.7,2.8).lerp(iso(7,1),t)-Vector2(0,110+sin(t*PI)*70)
-		if t<1: sprite(Art.name_for("dream" if model.s.recipe else "energy",model.level("cauldron")),p,31)
+		if t<1: sprite(Art.name_for(Art.POTIONS[int(model.s.recipe)],model.level("cauldron")),p,31)
 	draw_effects()
 	draw_set_transform(Vector2.ZERO)

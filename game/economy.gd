@@ -5,17 +5,25 @@ var s: Dictionary
 var events: Array = []
 var feedback: Array = []
 var dirty := false
-const VERSION := 3
+const VERSION := 4
+const MAX_PLOTS := 6
 const STATIONS := ["garden","cauldron","counter","shelf"]
 
 func _init():
 	fresh()
 
 func fresh():
-	s = {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":[0,0],"stock":[int(cfg.starting_stock),0],"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"crop":0,"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	s = {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	s.stock[0] = int(cfg.starting_stock)
 	events.clear()
 	feedback.clear()
 	dirty = true
+
+func zeros(n: int) -> Array:
+	var a := []
+	a.resize(n)
+	a.fill(0)
+	return a
 
 func default_levels() -> Dictionary:
 	var levels := {}
@@ -36,6 +44,15 @@ func migrate(v: Variant) -> Variant:
 		if v.owned.get("renovation",false):
 			v.decor.floor = 1
 			v.decor.wall = 1
+	# Version 4 adds the Recipe Book: inventories grow to every crop and potion,
+	# and beds choose their own seeds, so the global crop choice goes away.
+	if v is Dictionary and (v.get("version") is float or v.get("version") is int) and int(v.version) == 3:
+		v.version = VERSION
+		for key in ["herbs","stock"]:
+			var size: int = cfg.crops.size() if key == "herbs" else cfg.recipes.size()
+			if v.get(key) is Array:
+				while v[key].size() < size: v[key].append(0)
+		v.erase("crop")
 	return v
 
 func decor_unlocked(kind: String, variant: int) -> bool:
@@ -131,7 +148,80 @@ func first(id: String):
 		event(id)
 
 func stock_count() -> int:
-	return int(s.stock[0] + s.stock[1])
+	var n := 0
+	for k in s.stock: n += int(k)
+	return n
+
+func recipe_key(r: int) -> String:
+	return "recipe" if r == 1 else "recipe_%d" % r
+
+func recipe_unlocked(r: int) -> bool:
+	return r == 0 or owned(recipe_key(r))
+
+func next_locked_recipe() -> int:
+	for r in range(cfg.recipes.size()):
+		if not recipe_unlocked(r): return r
+	return -1
+
+func unlock_recipe(r: int) -> bool:
+	if r <= 0 or r >= cfg.recipes.size() or recipe_unlocked(r) or r != next_locked_recipe(): return false
+	var cost := int(cfg.recipes[r].unlock)
+	if s.coins < cost: return false
+	s.coins -= cost
+	s.owned[recipe_key(r)] = true
+	first("first_upgrade")
+	event("unlock_recipe_%d" % r)
+	feedback.append("upgrade")
+	select_recipe(r)
+	return true
+
+func needs(r: int) -> Array:
+	return cfg.recipes[r].needs
+
+func can_brew(r: int) -> bool:
+	for n in needs(r):
+		if s.herbs[int(n[0])] < int(n[1]): return false
+	return true
+
+func missing_herb(r: int) -> int:
+	for n in needs(r):
+		if s.herbs[int(n[0])] < int(n[1]): return int(n[0])
+	return -1
+
+func ingredient_text(r: int) -> String:
+	var parts := []
+	for n in needs(r): parts.append(("%d " % int(n[1]) if int(n[1]) > 1 else "") + cfg.crops[int(n[0])].name)
+	return " + ".join(parts)
+
+# A replanting bed picks the needed crop that is furthest behind, counting
+# herbs in the bin and what the other beds are already growing.
+func seed_for(index: int) -> int:
+	var best := int(needs(int(s.recipe))[0][0])
+	var low := INF
+	for n in needs(int(s.recipe)):
+		var c := int(n[0])
+		var supply := float(s.herbs[c])
+		for i in range(s.plots.size()):
+			if i != index and int(s.plots[i].crop) == c: supply += float(cfg.crops[c].yield)
+		var score := supply / float(n[1])
+		if score < low:
+			low = score
+			best = c
+	return best
+
+func plot_cost() -> int:
+	var i: int = s.plots.size() - 2
+	return int(cfg.plot_costs[i]) if i < cfg.plot_costs.size() else 0
+
+func buy_plot() -> bool:
+	if s.plots.size() >= MAX_PLOTS or s.coins < plot_cost(): return false
+	s.coins -= plot_cost()
+	s.plots.append({"crop":0,"progress":0.0})
+	s.plots.back().crop = seed_for(s.plots.size() - 1)
+	event("buy_plot_%d" % s.plots.size())
+	feedback.append("upgrade")
+	dirty = true
+	return true
 
 func capacity() -> int:
 	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1) + level("shelf") - 1
@@ -148,13 +238,14 @@ func price(recipe: int) -> int:
 
 func harvest() -> bool:
 	var did := false
-	for p in s.plots:
+	for i in range(s.plots.size()):
+		var p: Dictionary = s.plots[i]
 		var c := int(p.crop)
 		var amount := int(cfg.crops[c].yield)
 		if p.progress >= grow_time(c) and s.herbs[c] + amount <= herb_capacity():
 			s.herbs[c] += amount
 			p.progress = 0.0
-			p.crop = s.crop
+			p.crop = seed_for(i)
 			did = true
 	if did:
 		first("first_harvest")
@@ -164,10 +255,9 @@ func harvest() -> bool:
 
 func brew() -> bool:
 	var r := int(s.recipe)
-	var rec: Dictionary = cfg.recipes[r]
-	if s.pot != -1 or stock_count() >= capacity() or s.herbs[int(rec.herb)] < rec.consume:
+	if s.pot != -1 or stock_count() >= capacity() or not can_brew(r):
 		return false
-	s.herbs[int(rec.herb)] -= int(rec.consume)
+	for n in needs(r): s.herbs[int(n[0])] -= int(n[1])
 	s.pot = r
 	s.brew_progress = 0.0
 	s.ready = false
@@ -211,19 +301,17 @@ func purchase(id: String) -> bool:
 		return true
 	return false
 
-func select_crop(value: int):
-	if value == 0 or (value == 1 and owned("recipe")):
-		s.crop = value
-		for p in s.plots:
-			if p.crop != value:
-				p.crop = value
-				p.progress = 0.0
-		dirty = true
-
+# Choosing a recipe rebalances the beds for free; a bed keeps its growth when
+# its crop is still the one the balance wants.
 func select_recipe(value: int):
-	if value == 0 or (value == 1 and owned("recipe")):
-		s.recipe = value
-		dirty = true
+	if value < 0 or value >= cfg.recipes.size() or not recipe_unlocked(value): return
+	s.recipe = value
+	for i in range(s.plots.size()):
+		var want := seed_for(i)
+		if int(s.plots[i].crop) != want:
+			s.plots[i].crop = want
+			s.plots[i].progress = 0.0
+	dirty = true
 
 func tick(dt: float):
 	s.elapsed += dt
@@ -247,13 +335,18 @@ func tick(dt: float):
 		s.service += dt
 		if s.service + 0.00001 >= service_time():
 			# Checkout is the only writer that removes stocked bottles.
-			var r := 1 if s.stock[1] > 0 else 0
+			# Customers take the most valuable potion on the shelf.
+			var r := 0
+			for k in range(s.stock.size() - 1, -1, -1):
+				if s.stock[k] > 0:
+					r = k
+					break
 			if s.queue > 0 and s.stock[r] > 0:
 				s.stock[r] -= 1
 				s.coins += price(r)
 				s.queue -= 1
 				first("first_sale")
-				feedback.append("dream_sale" if r == 1 else "sale")
+				feedback.append("dream_sale" if r >= 1 else "sale")
 				dirty = true
 			s.serving = false
 			s.service = 0.0
@@ -267,7 +360,7 @@ func update_tutorial():
 	if stage == conditions.size(): first("tutorial_complete")
 
 func objective() -> String:
-	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in Improve • 48 coins","Save 320 coins for the grand glow-up",milestone_goal()][int(s.tutorial)]
+	return ["Garden → harvest your first peppermint","Shop → brew, then stock your first potion","Shop → serve a customer to earn coins","Hire Pip in Team • 32 coins","Hire Momo in Team • 56 coins","Hire Sol in Team • 80 coins","Unlock Dreamdrop in the Recipe Book • 48 coins","Save 320 coins for the grand glow-up",milestone_goal()][int(s.tutorial)]
 
 func goal_station() -> String:
 	# The station closest (in levels) to its next ×2 milestone.
@@ -305,7 +398,7 @@ func status() -> String:
 	if s.ready: return "Shelf full" if stock_count() >= capacity() else "Potion ready • stock the shelf"
 	if s.pot != -1: return "Brewing %s • %ds" % [cfg.recipes[int(s.pot)].name, ceili(brew_time(int(s.pot))-s.brew_progress)]
 	if stock_count() >= capacity(): return "Shelf full • serve customers"
-	if s.herbs[int(cfg.recipes[int(s.recipe)].herb)] < cfg.recipes[int(s.recipe)].consume: return "Waiting for herbs • visit Garden"
+	if not can_brew(int(s.recipe)): return "Waiting for %s • visit Garden" % cfg.crops[missing_herb(int(s.recipe))].name
 	return "Ready to brew • " + cfg.recipes[int(s.recipe)].name
 
 func simulate(seconds: float):
@@ -332,7 +425,7 @@ func valid(v: Variant) -> bool:
 	for key in ["coins","elapsed","timestamp","brew_progress","service","arrival","tutorial","queue"]:
 		if not (v[key] is float or v[key] is int) or not is_finite(float(v[key])) or v[key] < 0: return false
 	for key in ["herbs","stock"]:
-		if not v[key] is Array or v[key].size() != 2: return false
+		if not v[key] is Array or v[key].size() != (cfg.crops.size() if key == "herbs" else cfg.recipes.size()): return false
 		for n in v[key]:
 			if not (n is float or n is int) or n < 0 or n != floor(n): return false
 	if not v.owned is Dictionary or not v.flags is Dictionary or not v.offline_notice is Dictionary: return false
@@ -340,9 +433,9 @@ func valid(v: Variant) -> bool:
 		if not v.owned[key] is bool: return false
 	for key in ["ready","serving","muted"]:
 		if not v[key] is bool: return false
-	for key in ["crop","recipe","pot"]:
+	for key in ["recipe","pot"]:
 		if not (v[key] is int or v[key] is float) or v[key] != floor(v[key]): return false
-	if int(v.crop) not in [0,1] or int(v.recipe) not in [0,1] or int(v.pot) not in [-1,0,1] or v.tutorial > 8 or v.queue > 3 + cfg.milestones.size(): return false
+	if int(v.recipe) < 0 or int(v.recipe) >= cfg.recipes.size() or int(v.pot) < -1 or int(v.pot) >= cfg.recipes.size() or v.tutorial > 8 or v.queue > 3 + cfg.milestones.size(): return false
 	if not v.levels is Dictionary: return false
 	if not v.decor is Dictionary: return false
 	for kind in ["floor","wall"]:
@@ -353,9 +446,9 @@ func valid(v: Variant) -> bool:
 		var n = v.levels.get(id)
 		if not (n is float or n is int) or n != floor(n) or n < 1 or n > cfg.max_level: return false
 	if v.ready and v.pot == -1: return false
-	if not v.plots is Array or v.plots.size() != 2: return false
+	if not v.plots is Array or v.plots.size() < 2 or v.plots.size() > MAX_PLOTS: return false
 	for p in v.plots:
 		if not p is Dictionary or not (p.get("crop") is int or p.get("crop") is float): return false
-		if p.crop != floor(p.crop) or int(p.crop) not in [0,1]: return false
+		if p.crop != floor(p.crop) or int(p.crop) < 0 or int(p.crop) >= cfg.crops.size(): return false
 		if not (p.get("progress") is float or p.get("progress") is int) or p.progress < 0 or not is_finite(float(p.progress)): return false
 	return true

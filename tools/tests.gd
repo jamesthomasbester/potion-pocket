@@ -9,6 +9,15 @@ func check(condition: bool, name: String):
 		failures+=1
 		print("FAIL ",name)
 	else: print("PASS ",name)
+# Pad short literals to the full crop (5) and potion (8) inventories.
+func H(a: Array) -> Array:
+	var out:=a.duplicate()
+	while out.size()<5: out.append(0)
+	return out
+func P(a: Array) -> Array:
+	var out:=a.duplicate()
+	while out.size()<8: out.append(0)
+	return out
 func _initialize():
 	var m=E.new()
 	m.simulate(6)
@@ -31,21 +40,21 @@ func _initialize():
 	check(is_equal_approx(m.grow_time(0),4.0) and is_equal_approx(m.brew_time(0),2.0) and m.capacity()==12 and m.price(0)==10,"displayed upgrade effects")
 	m=E.new()
 	m.s.owned.recipe=true
-	m.s.herbs=[0,1]
+	m.s.herbs=H([0,1])
 	m.select_recipe(1)
-	check(m.brew() and m.s.herbs==[0,0],"dream consumes moonflower only")
+	check(m.brew() and m.s.herbs==H([]),"dream consumes moonflower only")
 	m.simulate(4)
-	check(m.stock() and m.s.stock==[1,1],"dream produces correct bottle")
+	check(m.stock() and m.s.stock==P([1,1]),"dream produces correct bottle")
 	m=E.new()
-	m.s.stock=[6,0]
-	m.s.herbs=[2,0]
+	m.s.stock=P([6])
+	m.s.herbs=H([2])
 	check(not m.brew(),"full shelf blocks production without consuming")
 	m.simulate(3)
 	m.serve()
 	m.simulate(1.8)
 	check(m.brew(),"full shelf recovers when a sale frees space")
 	m=E.new()
-	check(not m.brew() and m.s.herbs==[0,0],"unavailable herb safe")
+	check(not m.brew() and m.s.herbs==H([]),"unavailable herb safe")
 	m.s.owned={"gardener":true,"brewer":true,"cashier":true}
 	m.simulate(120)
 	check(m.s.coins>150,"three helpers grow brew stock sell without manual work")
@@ -70,7 +79,7 @@ func _initialize():
 	capped.s.timestamp=1000
 	var report=capped.offline(100000)
 	check(report.seconds==7200 and capped.s.coins==0,"two-hour cap and no unattended manual sales")
-	check(capped.s.herbs==[0,0],"offline no gardener means no harvesting")
+	check(capped.s.herbs==H([]),"offline no gardener means no harvesting")
 	var store=S.new()
 	store.path="user://rules-test.json"
 	store.reset(m)
@@ -88,7 +97,7 @@ func _initialize():
 	var recovered=E.new()
 	check(store.load_into(recovered,2000) and recovered.s.coins==m.s.coins,"corrupt main recovers backup")
 	var invalid=m.s.duplicate(true)
-	invalid.herbs=[-1,0]
+	invalid.herbs=H([-1])
 	check(not m.valid(invalid),"negative inventory rejected")
 	invalid=m.s.duplicate(true)
 	invalid.plots=[{"crop":99,"progress":0},{}]
@@ -100,7 +109,7 @@ func _initialize():
 	check(m.s.herbs[0]>0 and m.s.coins==0 and m.s.stock[0]==1,"gardener only removes harvesting work")
 	m=E.new()
 	m.s.owned.brewer=true
-	m.s.herbs=[2,0]
+	m.s.herbs=H([2])
 	m.simulate(8)
 	check(m.s.stock[0]==3 and m.s.herbs[0]==0 and m.s.coins==0,"brewer only consumes brews and stocks")
 	m=E.new()
@@ -110,13 +119,12 @@ func _initialize():
 
 	m=E.new()
 	m.s.owned={"gardener":true,"brewer":true,"cashier":true,"recipe":true}
-	m.s.herbs=[24,0]
-	m.select_crop(1)
+	m.s.herbs=H([24])
 	m.select_recipe(1)
 	m.simulate(20)
 	check(m.s.coins>0 and m.s.herbs[1]>0,"recipe switch recovers with saturated old ingredient bin")
 	m=E.new()
-	m.s.stock=[6,0]
+	m.s.stock=P([6])
 	m.s.pot=1
 	m.s.ready=true
 	check(not m.stock() and m.s.ready,"completed potion waits intact at full shelf")
@@ -125,7 +133,7 @@ func _initialize():
 	m.simulate(1.8)
 	check(m.stock() and m.s.stock[1]==1,"waiting completed potion stocks after capacity clears")
 	m=E.new()
-	m.s.herbs=[1,0]
+	m.s.herbs=H([1])
 	m.brew()
 	m.s.owned.recipe=true
 	m.select_recipe(1)
@@ -193,7 +201,7 @@ func _initialize():
 	f.store_string(JSON.stringify(old))
 	f.close()
 	var upgraded=E.new()
-	check(store.load_into(upgraded,0) and upgraded.s.coins==77 and upgraded.s.version==3 and not store.locked,"old save file loads after the update")
+	check(store.load_into(upgraded,0) and upgraded.s.coins==77 and upgraded.s.version==4 and not store.locked,"old save file loads after the update")
 	invalid=upgraded.s.duplicate(true)
 	invalid.levels.shelf=0
 	check(not m.valid(invalid),"invalid station level rejected")
@@ -222,5 +230,49 @@ func _initialize():
 	version_two.erase("decor")
 	version_two.owned.renovation=true
 	check(m.valid(m.migrate(version_two)) and version_two.decor.floor==1 and version_two.decor.wall==1,"version 2 save migrates renovation appearance")
+	# Recipe Book, crops and garden plots.
+	m=E.new()
+	check(m.s.herbs.size()==5 and m.s.stock.size()==8 and m.s.stock[0]==1,"inventories cover every crop and potion")
+	m.s.coins=1000000
+	check(not m.unlock_recipe(2) and not m.recipe_unlocked(2),"recipes unlock in book order")
+	check(m.unlock_recipe(1) and m.s.coins==1000000-48 and m.owned("recipe") and int(m.s.recipe)==1,"unlocking Dreamdrop charges, keeps the old key and selects it")
+	check(m.unlock_recipe(2) and int(m.s.recipe)==2,"Calm Tea unlocks next")
+	m.s.herbs=H([1,1])
+	m.s.stock=P([])
+	check(m.brew() and m.s.herbs==H([]),"Calm Tea consumes one peppermint and one moonflower")
+	m.s.herbs=H([1])
+	m.s.pot=-1
+	check(not m.brew() and m.missing_herb(2)==1,"two-herb recipe waits for the missing herb")
+	var used=[]
+	for plot in m.s.plots: used.append(int(plot.crop))
+	check(0 in used and 1 in used,"beds split between the recipe's two crops")
+	m=E.new()
+	for r in range(1,8): m.s.owned[m.recipe_key(r)]=true
+	m.s.owned.gardener=true
+	m.select_recipe(7)
+	m.simulate(120)
+	check(m.s.herbs[1]>0 and m.s.herbs[3]>0 and m.s.herbs[4]>0,"two beds rotate through all three Aurora crops")
+	m=E.new()
+	m.s.stock=P([1,0,0,2])
+	m.s.queue=1
+	m.serve()
+	m.simulate(1.8)
+	check(m.s.stock==P([1,0,0,1]) and m.s.coins==45,"customers buy the most valuable potion first")
+	m=E.new()
+	check(m.plot_cost()==150 and not m.buy_plot(),"third plot costs 150")
+	m.s.coins=10000000
+	for i in range(4): m.buy_plot()
+	check(m.s.plots.size()==6 and not m.buy_plot() and m.s.coins==10000000-150-1500-12000-90000,"four plots can be bought, up to six")
+	check(m.valid(m.s),"six-plot save validates")
+	invalid=m.s.duplicate(true)
+	invalid.plots.append({"crop":0,"progress":0})
+	check(not m.valid(invalid),"seven plots rejected")
+	var v3=JSON.parse_string(JSON.stringify(E.new().s))
+	v3.version=3
+	v3.herbs=[3,4]
+	v3.stock=[2,1]
+	v3.crop=1
+	v3=m.migrate(v3)
+	check(m.valid(v3) and v3.herbs==H([3,4]) and v3.stock==P([2,1]) and not v3.has("crop"),"version 3 save migrates to the Recipe Book")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)

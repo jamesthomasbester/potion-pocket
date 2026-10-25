@@ -22,14 +22,13 @@ var goal_panel: PanelContainer
 var goal_bar: ProgressBar
 var last_objective := ""
 var status: Label
-var leaf_count: Label
-var flower_count: Label
-var flower_chip: Control
+var herb_chips: Array = []
+var herb_counts: Array = []
+var herb_icons: Array = []
 var bottle_count: Label
+var bottle_icon: TextureRect
 var primary: Button
 var secondary: Button
-var choice0: Button
-var choice1: Button
 var shop_tab: Button
 var garden_tab: Button
 var mute: Button
@@ -226,6 +225,12 @@ func build_ui():
 	coins_label.custom_minimum_size.x=46
 	coin_row.add_child(coins_label)
 	squish(coin_pill)
+	var book=button("",func(): show_book(),52,SAND)
+	book.icon=load("res://game/art/book.svg")
+	book.add_theme_constant_override("icon_max_width",30)
+	book.custom_minimum_size.x=52
+	book.size_flags_horizontal=Control.SIZE_SHRINK_END
+	top.add_child(book)
 	var gear=button("⚙",func():
 		settings_box.visible=not settings_box.visible
 		sound.play("tap"),52,SAND)
@@ -269,6 +274,7 @@ func build_ui():
 	goal_panel.gui_input.connect(func(event):
 		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
 			if "Hire" in model.objective(): show_upgrades(true)
+			elif "Recipe Book" in model.objective(): show_book()
 			elif "Improve" in model.objective() or "Lv." in model.objective() or "glow-up" in model.objective(): show_upgrades(false))
 	room=Room.new()
 	room.custom_minimum_size.y=340
@@ -277,7 +283,8 @@ func build_ui():
 	room.gui_input.connect(func(event):
 		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
 			var id:String=room.station_at(event.position)
-			if id!="" and id!=selected_station:
+			if id=="plot": buy_plot()
+			elif id!="" and id!=selected_station:
 				selected_station=id
 				sound.play("tap")
 				refresh())
@@ -297,13 +304,10 @@ func build_ui():
 	mute=button("Sound",toggle_mute,50,CREAM)
 	management.add_child(mute)
 	management.add_child(button("Reset",func(): reset_dialog.popup_centered(Vector2i(440,180)),50,Color("f4c6b8")))
-	settings_box.add_child(button("Décor • floors & walls",show_decor,52,LAVENDER))
-	var choices=row()
-	settings_box.add_child(choices)
-	choice0=button("",func(): select(0),60,CREAM)
-	choice1=button("",func(): select(1),60,CREAM)
-	choices.add_child(choice0)
-	choices.add_child(choice1)
+	var extras=row()
+	settings_box.add_child(extras)
+	extras.add_child(button("Recipe Book",func(): show_book(),52,LAVENDER))
+	extras.add_child(button("Décor • floors & walls",show_decor,52,LAVENDER))
 	settings_panel.hide()
 	# Tests and the QA run toggle settings_box directly; keep its panel in step.
 	settings_box.visibility_changed.connect(func():
@@ -355,16 +359,17 @@ func build_ui():
 	var chips=row()
 	chips.alignment=BoxContainer.ALIGNMENT_CENTER
 	card_stack.add_child(chips)
-	var c=chip(load("res://game/art/leaves.png"))
-	chips.add_child(c[0])
-	leaf_count=c[1]
-	c=chip(load("res://game/art/flowers.png"))
-	chips.add_child(c[0])
-	flower_chip=c[0]
-	flower_count=c[1]
-	c=chip(load("res://game/art/energy.png"))
-	chips.add_child(c[0])
-	bottle_count=c[1]
+	chips.add_theme_constant_override("separation",6)
+	for crop in range(model.cfg.crops.size()):
+		var c=chip(load("res://game/art/%s_t1.png" % Art.CROPS[crop]))
+		chips.add_child(c[0])
+		herb_chips.append(c[0])
+		herb_counts.append(c[1])
+		herb_icons.append(c[0].get_child(0).get_child(0))
+	var bottle=chip(load("res://game/art/energy_t1.png"))
+	chips.add_child(bottle[0])
+	bottle_count=bottle[1]
+	bottle_icon=bottle[0].get_child(0).get_child(0)
 	var actions=row()
 	card_stack.add_child(actions)
 	primary=button("",act_primary,64)
@@ -472,12 +477,33 @@ func switch_tab(value: String):
 	room.queue_redraw()
 	refresh()
 
-func select(value: int):
-	if tab=="garden": model.select_crop(value)
-	else: model.select_recipe(value)
-	sound.play("tap")
-	persist()
-	refresh()
+func choose_recipe(r: int):
+	if storage.locked: return
+	if model.recipe_unlocked(r):
+		model.select_recipe(r)
+		sound.play("tap")
+	elif model.unlock_recipe(r):
+		if purchase_cards.has("rc_%d" % r): pop(purchase_cards["rc_%d" % r],1.0,0.35,1.06)
+	after_action()
+
+func buy_plot():
+	if storage.locked: return
+	model.buy_plot()
+	after_action()
+
+func potion_icon(r: int) -> Texture2D:
+	return room.textures[Art.name_for(Art.POTIONS[r],model.level("cauldron"))]
+
+func show_book():
+	clear_cards()
+	upgrade_title.text="Recipe Book"
+	overlay_sub.text="Unlock potions, then choose what to brew. Your beds plant whatever it needs."
+	var next:int=model.next_locked_recipe()
+	for r in range(model.cfg.recipes.size()):
+		shop_card(potion_icon(r),"","",choose_recipe.bind(r),"rc_%d" % r)
+		# Recipes beyond the next unlock stay a mystery until you get there.
+		if next!=-1 and r>next: purchase_cards["rc_%d" % r].get_child(0).get_child(0).get_child(0).modulate=Color(0.15,0.12,0.25,0.85)
+	open_cards()
 
 func act_primary():
 	if storage.locked: return
@@ -518,7 +544,7 @@ func seconds(v: float) -> String:
 # Current value of a station's headline stat, for "now → next" text.
 func station_value(id: String) -> String:
 	match id:
-		"garden": return seconds(model.grow_time(int(model.s.crop)))
+		"garden": return seconds(model.grow_time(int(model.s.plots[0].crop)))
 		"cauldron": return seconds(model.brew_time(int(model.s.recipe)))
 		"counter": return seconds(model.arrival_time())
 	return model.short(model.price(int(model.s.recipe)))
@@ -539,14 +565,14 @@ func station_milestone(id: String) -> String:
 	return "★ Lv. %d: ×2 %s" % [m,what]
 
 func station_name(id: String) -> String:
-	if id=="garden": return model.cfg.crops[int(model.s.crop)].name
+	if id=="garden": return "Garden beds"
 	for st in model.cfg.stations:
 		if st.id==id: return st.name
 	return id
 
 func station_icon(id: String) -> Texture2D:
 	if id=="garden":
-		return room.textures[Art.name_for("moonflower" if int(model.s.crop)==1 else "mint",model.level("garden"))]
+		return room.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
 	return room.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
 
 func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable, key: String):
@@ -682,25 +708,19 @@ func refresh():
 	upgrade_button.text="Max" if maxed else "Level up\n"+model.short(model.level_cost(id))
 	upgrade_button.icon=null if maxed else coin_tex
 	upgrade_button.disabled=maxed or s.coins<model.level_cost(id)
-	leaf_count.text=str(int(s.herbs[0]))
-	flower_count.text=str(int(s.herbs[1]))
-	flower_chip.visible=model.owned("recipe") or s.herbs[1]>0
+	# Show a chip for each herb you hold or the current recipe needs.
+	var wanted:=[]
+	for n in model.needs(int(s.recipe)): wanted.append(int(n[0]))
+	for crop in range(herb_chips.size()):
+		herb_counts[crop].text=str(int(s.herbs[crop]))
+		herb_chips[crop].visible=crop in wanted or s.herbs[crop]>0
 	bottle_count.text="%d / %d" % [model.stock_count(),model.capacity()]
+	bottle_icon.texture=potion_icon(int(s.recipe))
 	status.text=model.status()
 	primary.visible=not model.owned("gardener" if tab=="garden" else "brewer")
 	secondary.visible=tab=="garden" or not model.owned("cashier")
-	var selected:=int(s.crop if tab=="garden" else s.recipe)
-	choice0.text=("✓ " if selected==0 else "")+("Peppermint" if tab=="garden" else "Energy • %d coins" % model.price(0))
-	choice1.text=("✓ " if selected==1 else "")+("Moonflower" if tab=="garden" else "Dream • %d coins" % model.price(1)) if model.owned("recipe") else "Unlock in Improve"
-	choice1.disabled=not model.owned("recipe")
-	for i in range(2):
-		var chosen:=selected==i
-		var b: Button=[choice0,choice1][i]
-		if not b.has_meta("chosen") or b.get_meta("chosen")!=chosen:
-			b.set_meta("chosen",chosen)
-			paint(b,LAVENDER if chosen else CREAM)
 	if tab=="garden":
-		status.text="Free replanting • replant selection: "+model.cfg.crops[int(s.crop)].name
+		status.text="Beds plant for %s • %s" % [model.cfg.recipes[int(s.recipe)].name,model.ingredient_text(int(s.recipe))]
 		primary.text="Harvest + replant"
 		var ready:=false
 		for p in s.plots:
@@ -713,7 +733,7 @@ func refresh():
 		secondary.disabled=false
 	else:
 		primary.text="Stock potion" if s.ready else "Brewing…" if s.pot!=-1 else "Brew potion"
-		primary.disabled=(not s.ready and (s.pot!=-1 or s.herbs[int(model.cfg.recipes[int(s.recipe)].herb)]<1)) or model.stock_count()>=model.capacity()
+		primary.disabled=(not s.ready and (s.pot!=-1 or not model.can_brew(int(s.recipe)))) or model.stock_count()>=model.capacity()
 		secondary.text="Checkout busy" if s.serving else "Serve • %d waiting" % s.queue
 		secondary.disabled=s.serving or s.queue==0 or model.stock_count()==0
 	if styled_tab!=tab:
@@ -742,6 +762,20 @@ func refresh():
 			b.icon=null if owned else coin_tex
 			b.disabled=owned or s.coins<p.cost
 			purchase_cards[p.id].modulate=Color(1,1,1,0.62) if owned else Color.WHITE
+	var next:int=model.next_locked_recipe()
+	for r in range(model.cfg.recipes.size()):
+		var key="rc_%d" % r
+		if not purchase_buttons.has(key): continue
+		var rec:Dictionary=model.cfg.recipes[r]
+		var b:Button=purchase_buttons[key]
+		var unlocked:bool=model.recipe_unlocked(r)
+		var hidden:bool=next!=-1 and r>next
+		purchase_labels[key][0].text="???" if hidden else rec.name
+		purchase_labels[key][1].text="Unlock %s first" % model.cfg.recipes[next].name if hidden else "%s • sells %s • %s" % [model.ingredient_text(r),model.short(model.price(r)),seconds(model.brew_time(r))]
+		b.icon=null if unlocked or hidden else coin_tex
+		b.text="Brewing" if int(s.recipe)==r else "Brew" if unlocked else "Locked" if hidden else model.short(rec.unlock)
+		b.disabled=int(s.recipe)==r or hidden or (not unlocked and s.coins<rec.unlock)
+		purchase_cards[key].modulate=Color(1,1,1,.7) if hidden else Color.WHITE
 	for kind in ["floor","wall"]:
 		for i in range(3):
 			var key="decor_%s_%d" % [kind,i]
@@ -865,7 +899,14 @@ func run_capture():
 		await tap(shop_tab)
 		await tap(primary)
 		await tap(secondary)
-		for id in ["gardener","brewer","cashier","recipe","renovation","grow","brew","capacity","service"]:
+		if not model.owned("recipe") and model.owned("cashier") and model.s.coins>=model.cfg.recipes[1].unlock:
+			show_book()
+			await get_tree().process_frame
+			await tap(purchase_buttons["rc_1"])
+			upgrade_layer.hide()
+			print("PLAY purchase recipe at ",model.s.elapsed)
+		for id in ["gardener","brewer","cashier","renovation","grow","brew","capacity","service"]:
+			if id=="renovation" and not model.owned("recipe"): break
 			if model.owned(id): continue
 			var p: Dictionary={}
 			for candidate in model.cfg.purchases:
@@ -895,17 +936,16 @@ func run_capture():
 		if model.owned("renovation") and not recorded_renovation:
 			await screenshot("renovated-shop")
 			recorded_renovation=true
-		if model.owned("recipe") and model.s.crop != 1:
+		if model.owned("service") and model.s.plots.size()<3 and model.s.coins>=model.plot_cost():
 			await tap(garden_tab)
-			settings_box.show()
-			await get_tree().process_frame
-			await tap(choice1)
-			settings_box.hide()
+			var point=room.view_offset+room.bed_center(model.s.plots.size())*room.view_scale
+			var press=InputEventMouseButton.new()
+			press.button_index=MOUSE_BUTTON_LEFT
+			press.pressed=true
+			press.position=point
+			room.gui_input.emit(press)
+			print("PLAY purchase plot at ",model.s.elapsed)
 			await tap(shop_tab)
-			settings_box.show()
-			await get_tree().process_frame
-			await tap(choice1)
-			settings_box.hide()
 	print("PLAY FINAL ",JSON.stringify(model.s))
 	var file:=FileAccess.open("res://docs/evidence/playthrough-events.json",FileAccess.WRITE)
 	file.store_string(JSON.stringify(model.events,"  "))

@@ -17,7 +17,7 @@ func run():
 	await process_frame
 	await process_frame
 	await app.screenshot("layout-"+str(int(app.get_viewport_rect().size.y)))
-	for b in [app.primary,app.secondary,app.choice0,app.choice1,app.shop_tab,app.garden_tab]:
+	for b in [app.primary,app.secondary,app.shop_tab,app.garden_tab]:
 		check(app.get_viewport_rect().encloses(b.get_global_rect()) and b.size.y>=48,"touch control within screen, >=48px: "+b.text)
 	var before=app.model.s.duplicate(true)
 	await app.tap(app.garden_tab)
@@ -37,12 +37,29 @@ func run():
 	app.model.simulate(1.8)
 	check(app.model.s.coins==8,"touch sale completes valid loop")
 	app.model.s.owned.recipe=true
-	app.model.s.herbs=[24,0]
-	await app.tap(app.garden_tab)
-	await app.tap(app.choice1)
+	app.model.s.herbs=[24,0,0,0,0]
+	app.settings_box.hide()
+	app.show_book()
+	await process_frame
+	await app.tap(app.purchase_buttons["rc_1"])
+	check(int(app.model.s.recipe)==1 and app.purchase_buttons["rc_1"].text=="Brewing","Recipe Book brew button selects Dreamdrop")
+	check(app.purchase_labels["rc_3"][0].text=="???","recipes past the next unlock stay hidden")
+	app.upgrade_layer.hide()
 	app.model.simulate(8)
 	app.model.harvest()
-	check(app.model.s.herbs[1]==4,"switching crop recovers from full old herb inventory")
+	check(app.model.s.herbs[1]==4,"switching recipe replants beds and recovers from a full old herb bin")
+	await app.tap(app.garden_tab)
+	var kept_coins=app.model.s.coins
+	app.model.s.coins=150
+	var plot_point=app.room.view_offset+app.room.bed_center(2)*app.room.view_scale
+	var press=InputEventMouseButton.new()
+	press.button_index=MOUSE_BUTTON_LEFT
+	press.pressed=true
+	press.position=plot_point
+	app.room.gui_input.emit(press)
+	check(app.model.s.plots.size()==3 and app.model.s.coins==0,"tapping the locked plot buys it")
+	app.model.s.coins=kept_coins
+	app.settings_box.show()
 	app.storage.path="user://ui-lifecycle-test.json"
 	app.harness=false
 	app.notification(MainLoop.NOTIFICATION_APPLICATION_PAUSED)
@@ -71,7 +88,7 @@ func run():
 	check(is_equal_approx(app.model.brew_time(0),3.0/1.06),"level up changes actual brew duration")
 	check(app.card_title.text=="Cauldron · Lv. 2","card shows the new level")
 	var counter_point=app.room.view_offset+app.room.station_pos("counter")*app.room.view_scale-Vector2(0,40*app.room.view_scale)
-	var press=InputEventMouseButton.new()
+	press=InputEventMouseButton.new()
 	press.button_index=MOUSE_BUTTON_LEFT
 	press.pressed=true
 	press.position=counter_point

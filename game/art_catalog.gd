@@ -3,7 +3,10 @@ extends RefCounted
 # Each station visibly changes at these affordable early levels. Later levels
 # retain the masterwork sprite while their real economy bonuses keep growing.
 const TIER_LEVELS = [1,3,7]
-const FAMILIES = ["cauldron","shelf","counter","bed","mint","moonflower","energy","dream","bush","plant"]
+const FAMILIES = ["cauldron","shelf","counter","bed","mint","moonflower","energy","dream","bush","plant","ember","frost","starbloom","potion2","potion3","potion4","potion5","potion6","potion7"]
+# Sprite family per crop and per recipe, in economy.json order.
+const CROPS = ["mint","moonflower","ember","frost","starbloom"]
+const POTIONS = ["energy","dream","potion2","potion3","potion4","potion5","potion6","potion7"]
 
 const FLOORS = [
 	{"name":"Cream checker","a":"fae7cb","b":"f6e1c2","line":"e5ceb0","motif":"plain","unlock":"Included"},
