@@ -39,6 +39,12 @@ var upgrade_list: VBoxContainer
 var purchase_buttons := {}
 var purchase_cards := {}
 var modal: AcceptDialog
+var daily_button: Button
+var daily_dot: Panel
+var toast: PanelContainer
+var toast_label: Label
+var toast_queue: Array = []
+var day_timer := 0.0
 var welcome_layer: Control
 var welcome_lines: VBoxContainer
 var welcome_away: Label
@@ -293,6 +299,22 @@ func build_ui():
 	room.clip_contents=true
 	room.model=model
 	root_box.add_child(room)
+	daily_button=button("",func(): show_daily(),56,CREAM)
+	daily_button.icon=load("res://game/art/scroll.svg")
+	daily_button.add_theme_constant_override("icon_max_width",34)
+	daily_button.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
+	daily_button.custom_minimum_size=Vector2(56,56)
+	daily_button.position=Vector2(10,10)
+	room.add_child(daily_button)
+	daily_dot=Panel.new()
+	var dot:=style(Color("e4574a"),8)
+	dot.border_color=CREAM
+	dot.set_border_width_all(2)
+	daily_dot.add_theme_stylebox_override("panel",dot)
+	daily_dot.size=Vector2(16,16)
+	daily_dot.position=Vector2(44,-2)
+	daily_dot.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	daily_button.add_child(daily_dot)
 	settings_box=VBoxContainer.new()
 	settings_box.add_theme_constant_override("separation",8)
 	var settings_panel=PanelContainer.new()
@@ -425,6 +447,22 @@ func build_ui():
 	content.add_child(button("Back to the shop",func(): close_upgrades()))
 	upgrade_layer.hide()
 	build_welcome()
+	toast=PanelContainer.new()
+	var toast_style:=style(INK,18)
+	toast_style.content_margin_left=16
+	toast_style.content_margin_right=16
+	toast_style.content_margin_top=10
+	toast_style.content_margin_bottom=10
+	toast.add_theme_stylebox_override("panel",toast_style)
+	toast.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var toast_row:=row()
+	toast.add_child(toast_row)
+	toast_row.add_child(picture(load("res://game/art/trophy.svg"),32))
+	toast_label=label("",18)
+	toast_label.add_theme_color_override("font_color",CREAM)
+	toast_row.add_child(toast_label)
+	add_child(toast)
+	toast.hide()
 	modal=AcceptDialog.new()
 	modal.title="Little Lux"
 	add_child(modal)
@@ -507,6 +545,49 @@ func build_welcome():
 		welcome_layer.hide()
 		sound.play("dream_sale"),60))
 	welcome_layer.hide()
+
+func today() -> String:
+	return Time.get_date_string_from_system()
+
+func show_toast(text_line: String):
+	toast_queue.append(text_line)
+	if toast.visible: return
+	while not toast_queue.is_empty():
+		toast_label.text=toast_queue.pop_front()
+		toast.reset_size()
+		toast.position=Vector2((get_viewport_rect().size.x-toast.size.x)/2,-toast.size.y)
+		toast.show()
+		sound.play("upgrade")
+		var tw:=toast.create_tween()
+		tw.tween_property(toast,"position:y",86.0,0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(2.2)
+		tw.tween_property(toast,"position:y",-toast.size.y-10,0.25)
+		await tw.finished
+	toast.hide()
+
+const QUEST_ICONS = {"sold":"counter","brewed":"cauldron","harvested":"mint","levels":"shelf","specials":"customer1","earned":"coin"}
+
+func show_daily():
+	clear_cards()
+	upgrade_title.text="Daily goals"
+	overlay_sub.text="New goals every day. Come back tomorrow to grow your streak."
+	section("LOGIN STREAK")
+	shop_card(load("res://game/art/owner.png"),"","",func():
+		model.claim_login()
+		after_action(),"login")
+	section("TODAY")
+	for i in range(model.s.daily.get("quests",[]).size()):
+		var q:Dictionary=model.s.daily.quests[i]
+		var icon_name:String=QUEST_ICONS[q.kind]
+		var icon:Texture2D=coin_tex if icon_name=="coin" else room.textures.get(icon_name+"_t1",room.textures.get(icon_name))
+		shop_card(icon,"","",func():
+			model.claim_quest(i)
+			after_action(),"quest_%d" % i)
+	section("ACHIEVEMENTS • %d of %d" % [model.s.achievements.size(),model.ACHIEVEMENTS.size()])
+	var trophy:=load("res://game/art/trophy.svg")
+	for a in model.ACHIEVEMENTS:
+		shop_card(trophy,a[1],a[2],func(): pass,"ach_"+a[0])
+	open_cards()
 
 func duration(seconds: float) -> String:
 	var t:=int(seconds)
@@ -848,6 +929,35 @@ func refresh():
 			b.icon=null if owned else coin_tex
 			b.disabled=owned or s.coins<p.cost
 			purchase_cards[p.id].modulate=Color(1,1,1,0.62) if owned else Color.WHITE
+	daily_dot.visible=model.claimable()
+	if purchase_buttons.has("login"):
+		var login:Dictionary=s.login
+		var b:Button=purchase_buttons["login"]
+		purchase_labels["login"][0].text="Day %d of 7" % int(login.get("streak",1))
+		purchase_labels["login"][1].text="Today's gift grows with your streak"
+		b.text="Claimed" if login.get("claimed",true) else model.short(login.get("reward",0))
+		b.icon=null if login.get("claimed",true) else coin_tex
+		b.disabled=login.get("claimed",true)
+	for i in range(s.daily.get("quests",[]).size()):
+		var key="quest_%d" % i
+		if not purchase_buttons.has(key): continue
+		var q:Dictionary=s.daily.quests[i]
+		var b:Button=purchase_buttons[key]
+		var done:bool=int(q.progress)>=int(q.target)
+		purchase_labels[key][0].text=model.quest_text(q)
+		purchase_labels[key][1].text="%s / %s" % [model.short(q.progress),model.short(q.target)]
+		b.text="Claimed" if q.claimed else model.short(q.reward)
+		b.icon=null if q.claimed else coin_tex
+		b.disabled=q.claimed or not done
+		purchase_cards[key].modulate=Color(1,1,1,.62) if q.claimed else Color.WHITE
+	for a in model.ACHIEVEMENTS:
+		var key="ach_"+a[0]
+		if not purchase_buttons.has(key): continue
+		var got:bool=s.achievements.has(a[0])
+		var b:Button=purchase_buttons[key]
+		b.text="Done" if got else "%s/%s" % [model.short(mini(model.stat(a[3]),a[4])),model.short(a[4])]
+		b.disabled=true
+		purchase_cards[key].modulate=Color.WHITE if got else Color(1,1,1,.6)
 	var next:int=model.next_locked_recipe()
 	for r in range(model.cfg.recipes.size()):
 		var key="rc_%d" % r
@@ -922,15 +1032,23 @@ func _process(dt):
 		perf_frames.clear()
 		perf_clock=0.0
 	accumulator+=minf(dt,1.0)
+	model.begin_ticks()
 	while accumulator>=model.cfg.step:
 		model.tick(model.cfg.step)
 		accumulator-=model.cfg.step
+	model.end_ticks()
 	save_timer+=dt
 	flush_feedback()
 	if model.dirty or save_timer>=5:
 		persist()
 		save_timer=0
 	animate_ui(dt)
+	day_timer-=dt
+	if day_timer<=0:
+		day_timer=30.0
+		model.ensure_day(today())
+	model.check_achievements()
+	while not model.new_achievements.is_empty(): show_toast("Achievement: "+model.new_achievements.pop_front())
 	ui_timer+=dt
 	if ui_timer>=0.1:
 		ui_timer=0

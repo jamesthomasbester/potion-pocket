@@ -8,6 +8,25 @@ var dirty := false
 var last_visitor_pay := 0
 # Running totals for the welcome-back report; not saved.
 var tally := {"harvested":0,"brewed":0,"sold":0}
+# Achievement names unlocked since the UI last showed them.
+var new_achievements: Array = []
+const QUEST_TEXT := {"sold":"Serve %s customers","brewed":"Brew %s potions","harvested":"Harvest %s herbs","levels":"Level up stations %s times","specials":"Serve %s special visitors","earned":"Earn %s coins"}
+const ACHIEVEMENTS := [
+	["first_sale","First sale","Sell your first potion","sold",1],
+	["sold_100","Regulars","Sell 100 potions","sold",100],
+	["sold_1000","Local favourite","Sell 1,000 potions","sold",1000],
+	["sold_10000","Famous shop","Sell 10,000 potions","sold",10000],
+	["team","Full team","Hire Pip, Momo and Sol","team",3],
+	["level_10","First milestone","Reach Lv. 10 on any station","top_level",10],
+	["level_25","Master craft","Reach Lv. 25 on any station","top_level",25],
+	["level_50","Legendary gear","Reach Lv. 50 on any station","top_level",50],
+	["recipes_4","Apprentice alchemist","Unlock 4 recipes","recipes",4],
+	["recipes_8","Grand alchemist","Unlock all 8 recipes","recipes",8],
+	["beds_6","Green thumb","Grow six garden beds","plots",6],
+	["specials_10","Made to order","Serve 10 special visitors","specials",10],
+	["vips_10","Royal favour","Serve 10 VIPs","vips",10],
+	["earned_1m","Millionaire","Earn 1,000,000 coins in total","earned",1000000],
+	["glow_up","Grand glow-up","Renovate the shop","renovated",1]]
 const VERSION := 4
 const MAX_PLOTS := 6
 const STATIONS := ["garden","cauldron","counter","shelf"]
@@ -22,7 +41,7 @@ func fresh():
 	dirty = true
 
 func fresh_state() -> Dictionary:
-	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0}
+	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{}}
 	state.stock[0] = int(cfg.starting_stock)
 	return state
 
@@ -101,8 +120,15 @@ func next_milestone(id: String) -> int:
 	return 0
 
 # Each level adds a flat bonus; each milestone doubles that station's output.
+# Cached per level, since offline catch-up asks for it hundreds of thousands of times.
+var _mult_cache := {}
 func station_mult(id: String) -> float:
-	return (1.0 + cfg.level_speed * (level(id) - 1)) * pow(2.0, milestones_reached(id))
+	var lv := level(id)
+	var hit = _mult_cache.get(id)
+	if hit != null and hit[0] == lv: return hit[1]
+	var mult: float = (1.0 + cfg.level_speed * (lv - 1)) * pow(2.0, milestones_reached(id))
+	_mult_cache[id] = [lv, mult]
+	return mult
 
 func level_cost(id: String) -> int:
 	for st in cfg.stations:
@@ -117,6 +143,7 @@ func level_up(id: String) -> bool:
 	s.levels[id] = level(id) + 1
 	update_auto_decor()
 	first("first_level")
+	count("levels", 1)
 	# Milestones load from JSON as floats, so compare the reached one as an int.
 	if milestones_reached(id) > 0 and int(cfg.milestones[milestones_reached(id) - 1]) == level(id):
 		event("milestone_%s_%d" % [id, level(id)])
@@ -127,15 +154,19 @@ func level_up(id: String) -> bool:
 	return true
 
 func herb_capacity() -> int:
+	if _fast: return _d.herb_capacity
 	return int(cfg.herb_capacity) + 2 * (level("garden") - 1)
 
 func queue_capacity() -> int:
+	if _fast: return _d.queue_capacity
 	return 3 + milestones_reached("counter")
 
 func arrival_time() -> float:
+	if _fast: return _d.arrival_time
 	return float(cfg.arrival_seconds) / station_mult("counter")
 
 func service_time() -> float:
+	if _fast: return _d.service_time
 	return float(cfg.service_seconds) / (2.0 if owned("service") else 1.0) / station_mult("counter")
 
 func short(n: float) -> String:
@@ -259,6 +290,9 @@ func serve_visitor() -> bool:
 	s.stock[r] -= 1
 	s.coins += pay
 	event("served_" + s.visitor.kind)
+	count("specials", 1)
+	count("earned", pay)
+	if s.visitor.kind == "vip": count("vips", 1)
 	feedback.append("vip" if s.visitor.kind == "vip" else "request")
 	last_visitor_pay = pay
 	s.visitor = {}
@@ -281,15 +315,19 @@ func buy_plot() -> bool:
 	return true
 
 func capacity() -> int:
+	if _fast: return _d.capacity
 	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1) + level("shelf") - 1
 
 func grow_time(crop: int) -> float:
+	if _fast: return _d.grow_time[crop]
 	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden")
 
 func brew_time(recipe: int) -> float:
+	if _fast: return _d.brew_time[recipe]
 	return float(cfg.recipes[recipe].brew) / (1.5 if owned("brew") else 1.0) / station_mult("cauldron")
 
 func price(recipe: int) -> int:
+	if _fast: return _d.price[recipe]
 	var shelf: float = (1.0 + cfg.shelf_price * (level("shelf") - 1)) * pow(2.0, milestones_reached("shelf"))
 	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf))
 
@@ -301,7 +339,7 @@ func harvest() -> bool:
 		var amount := int(cfg.crops[c].yield)
 		if p.progress >= grow_time(c) and s.herbs[c] + amount <= herb_capacity():
 			s.herbs[c] += amount
-			tally.harvested += amount
+			count("harvested", amount)
 			p.progress = 0.0
 			p.crop = seed_for(i)
 			did = true
@@ -332,7 +370,7 @@ func stock() -> bool:
 	s.brew_progress = 0.0
 	first("first_brew")
 	feedback.append("stock")
-	tally.brewed += 1
+	count("brewed", 1)
 	dirty = true
 	return true
 
@@ -375,8 +413,9 @@ func select_recipe(value: int):
 func tick(dt: float):
 	s.elapsed += dt
 	for p in s.plots:
-		p.progress = min(p.progress + dt, grow_time(int(p.crop)))
-		if p.progress + 0.00001 >= grow_time(int(p.crop)): p.progress = grow_time(int(p.crop))
+		var grow := grow_time(int(p.crop))
+		p.progress = minf(p.progress + dt, grow)
+		if p.progress + 0.00001 >= grow: p.progress = grow
 	if owned("gardener"): harvest()
 	if s.pot != -1 and not s.ready:
 		s.brew_progress += dt
@@ -416,11 +455,106 @@ func tick(dt: float):
 				s.queue -= 1
 				first("first_sale")
 				feedback.append("dream_sale" if r >= 1 else "sale")
-				tally.sold += 1
+				count("sold", 1)
+				count("earned", price(r))
 				dirty = true
 			s.serving = false
 			s.service = 0.0
-	update_tutorial()
+	if int(s.tutorial) < 8: update_tutorial()
+
+func count(kind: String, n: int):
+	if tally.has(kind): tally[kind] += n
+	s.stats[kind] = int(s.stats.get(kind, 0)) + n
+	for q in s.daily.get("quests", []):
+		if q.kind == kind: q.progress = mini(int(q.target), int(q.progress) + n)
+
+func stat(kind: String) -> int:
+	match kind:
+		"team": return int(owned("gardener")) + int(owned("brewer")) + int(owned("cashier"))
+		"top_level":
+			var top := 1
+			for id in STATIONS: top = maxi(top, level(id))
+			return top
+		"recipes":
+			var n := 0
+			for r in range(cfg.recipes.size()): n += int(recipe_unlocked(r))
+			return n
+		"plots": return s.plots.size()
+		"renovated": return int(owned("renovation"))
+	return int(s.stats.get(kind, 0))
+
+func check_achievements():
+	for a in ACHIEVEMENTS:
+		if not s.achievements.has(a[0]) and stat(a[3]) >= a[4]:
+			s.achievements[a[0]] = true
+			new_achievements.append(a[1])
+			event("achievement_" + a[0])
+
+func total_levels() -> int:
+	var n := 0
+	for id in STATIONS: n += level(id)
+	return n
+
+# Rewards follow progress: a few of the cheapest next level-ups.
+func reward_base() -> int:
+	var cheapest := level_cost(STATIONS[0])
+	for id in STATIONS: cheapest = mini(cheapest, level_cost(id))
+	return maxi(60, cheapest * 4)
+
+# Starts a new day's goals and advances the login streak; false if already today.
+func ensure_day(today: String) -> bool:
+	if s.daily.get("day", "") == today: return false
+	var kinds := ["sold","brewed","harvested","levels","earned"]
+	if owned("recipe") or owned("cashier"): kinds.append("specials")
+	var picked := []
+	var h := absi(hash(today))
+	while picked.size() < 3:
+		var k: String = kinds[h % kinds.size()]
+		if not k in picked: picked.append(k)
+		h = absi(hash(h + 7))
+	var scale := 1.0 + total_levels() / 12.0
+	var base := reward_base()
+	var quests := []
+	for k in picked:
+		var target: int = {"sold":int(40 * scale),"brewed":int(40 * scale),"harvested":int(80 * scale),"levels":3 + total_levels() / 15,"specials":2,"earned":int(price(int(s.recipe)) * 40 * scale)}[k]
+		quests.append({"kind":k,"target":target,"progress":0,"claimed":false,"reward":base * (2 if k in ["levels","specials"] else 1)})
+	s.daily = {"day":today,"quests":quests}
+	var yesterday := Time.get_date_string_from_unix_time(Time.get_unix_time_from_datetime_string(today) - 86400)
+	var streak := int(s.login.get("streak", 0))
+	streak = (streak % 7) + 1 if s.login.get("last", "") == yesterday else 1
+	s.login = {"last":today,"streak":streak,"claimed":false,"reward":base * streak}
+	dirty = true
+	return true
+
+func quest_text(q: Dictionary) -> String:
+	return QUEST_TEXT[q.kind] % short(q.target)
+
+func claim_quest(i: int) -> bool:
+	var quests: Array = s.daily.get("quests", [])
+	if i < 0 or i >= quests.size(): return false
+	var q: Dictionary = quests[i]
+	if q.claimed or int(q.progress) < int(q.target): return false
+	q.claimed = true
+	s.coins += int(q.reward)
+	event("daily_claim_" + q.kind)
+	feedback.append("upgrade")
+	dirty = true
+	return true
+
+func claim_login() -> bool:
+	if s.login.is_empty() or s.login.claimed: return false
+	s.login.claimed = true
+	s.coins += int(s.login.reward)
+	event("login_day_%d" % int(s.login.streak))
+	feedback.append("upgrade")
+	dirty = true
+	return true
+
+func claimable() -> bool:
+	if not s.login.is_empty() and not s.login.claimed: return true
+	for q in s.daily.get("quests", []):
+		if not q.claimed and int(q.progress) >= int(q.target): return true
+	return false
 
 func update_tutorial():
 	var conditions := [s.flags.has("first_harvest"),s.flags.has("first_brew"),s.flags.has("first_sale"),owned("gardener"),owned("brewer"),owned("cashier"),owned("recipe"),owned("renovation")]
@@ -471,9 +605,28 @@ func status() -> String:
 	if not can_brew(int(s.recipe)): return "Waiting for %s • visit Garden" % cfg.crops[missing_herb(int(s.recipe))].name
 	return "Ready to brew • " + cfg.recipes[int(s.recipe)].name
 
+# Within a run of ticks nothing changes levels, upgrades or recipes, so the
+# derived numbers are computed once and read from _d by the hot functions.
+var _fast := false
+var _d := {}
+func begin_ticks():
+	_fast = false
+	_d = {"herb_capacity":herb_capacity(),"queue_capacity":queue_capacity(),"arrival_time":arrival_time(),"service_time":service_time(),"capacity":capacity(),"grow_time":[],"brew_time":[],"price":[]}
+	for c in range(cfg.crops.size()): _d.grow_time.append(grow_time(c))
+	for r in range(cfg.recipes.size()):
+		_d.brew_time.append(brew_time(r))
+		_d.price.append(price(r))
+	_fast = true
+
+func end_ticks():
+	_fast = false
+
 func simulate(seconds: float):
 	var count := int(floor(maxf(0.0, seconds) / cfg.step))
+	begin_ticks()
 	for i in range(count): tick(cfg.step)
+	end_ticks()
+	check_achievements()
 	feedback.clear()
 
 func offline_cap() -> float:
@@ -511,6 +664,12 @@ func valid(v: Variant) -> bool:
 		for n in v[key]:
 			if not (n is float or n is int) or n < 0 or n != floor(n): return false
 	if not v.owned is Dictionary or not v.flags is Dictionary or not v.offline_notice is Dictionary: return false
+	for key in ["daily","login","stats","achievements"]:
+		if not v[key] is Dictionary: return false
+	if v.daily.has("quests"):
+		if not v.daily.quests is Array: return false
+		for q in v.daily.quests:
+			if not q is Dictionary or not QUEST_TEXT.has(q.get("kind")): return false
 	for key in v.owned:
 		if not v.owned[key] is bool: return false
 	for key in ["ready","serving","muted"]:

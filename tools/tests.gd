@@ -315,5 +315,32 @@ func _initialize():
 	m.s.timestamp=200000.0
 	var long_away=m.offline(200000.0+20000)
 	check(long_away.seconds==20000 and not long_away.capped,"moon clock covers eight hours")
+	# Daily goals, login streak and achievements.
+	m=E.new()
+	check(m.ensure_day("2026-10-25") and m.s.daily.quests.size()==3 and not m.ensure_day("2026-10-25"),"three daily goals, created once per day")
+	var kinds=[]
+	for q in m.s.daily.quests: kinds.append(q.kind)
+	check(not "specials" in kinds,"special-visitor goals wait until visitors exist")
+	var q0=m.s.daily.quests[0]
+	q0.progress=q0.target-1
+	check(not m.claim_quest(0),"unfinished goal cannot be claimed")
+	m.count(q0.kind,5)
+	var before_claim=m.s.coins
+	check(int(q0.progress)==int(q0.target) and m.claim_quest(0) and m.s.coins==before_claim+int(q0.reward) and not m.claim_quest(0),"finished goal pays its reward once")
+	check(m.s.login.streak==1 and m.claim_login() and not m.claim_login(),"login gift claims once per day")
+	m.ensure_day("2026-10-26")
+	check(m.s.login.streak==2 and not m.s.login.claimed,"consecutive day extends the streak")
+	m.ensure_day("2026-10-29")
+	check(m.s.login.streak==1,"missed day restarts the streak")
+	for d in range(1,8): m.ensure_day("2026-11-0%d" % d)
+	check(m.s.login.streak==7,"seven consecutive days reach day seven")
+	m.ensure_day("2026-11-08")
+	check(m.s.login.streak==1,"streak cycles after day seven")
+	m=E.new()
+	m.s.owned={"gardener":true,"brewer":true,"cashier":true}
+	m.simulate(30)
+	check(m.s.achievements.has("first_sale") and m.s.achievements.has("team") and m.new_achievements.has("Full team"),"achievements unlock from real progress")
+	check(m.stat("sold")==int(m.s.stats.sold) and m.s.stats.sold>0,"lifetime stats count sales")
+	check(m.valid(m.s),"save with goals, stats and achievements validates")
 	print("RESULT ",checks," checks / ",failures," failures")
 	quit(1 if failures else 0)
