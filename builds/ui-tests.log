@@ -39,26 +39,31 @@ PASS context card levels the cauldron for its listed cost
 PASS level up changes actual brew duration
 PASS card shows the new level
 PASS tapping the counter selects its station
+PASS tapping the lectern opens the Recipe Book
 PASS coin header displays integer balance
-PASS scene stays clipped inside responsive scene area
+PASS the stage frames the whole room above the card
 PASS decor menu shows locked and selected floor choices
 PASS renovation changes visible architecture selection
 PASS touch choice switches only the floor
-PASS master furniture and plants are loaded into the playable scene
+PASS cauldron art moves to its third tier at Lv. 7
+PASS rug follows the chosen décor
 PASS 16 aligned poses loaded: owner
 PASS 16 aligned poses loaded: brewer
 PASS 16 aligned poses loaded: cashier
-PASS 16 aligned poses loaded: gardener
 PASS 16 aligned poses loaded: customer0
 PASS 16 aligned poses loaded: customer1
 PASS 16 aligned poses loaded: departing
 PASS all four travel directions select distinct facing columns
 PASS idle, stride, pickup and work select real pose rows
 PASS walk and work progress to their second keyframe
-PASS customer pauses to pick up a purchase
-PASS customer resumes with direction-aware walking
+PASS queued customers appear in the room, depth-sorted with furniture
+PASS the first customer walks in to the counter
+PASS a served customer pauses with their purchase, then leaves
+PASS departed customers are removed once outside
+PASS tapping a special visitor serves them
+PASS served visitor leaves the room
 PASS an unhired helper's training card is locked
 PASS Team card trains Pip for the listed cost
 PASS Improve card spends a Moon Star on a talent
-PASS second branch draws the seaside theme
-UI RESULT 46 checks / 0 failures
+PASS second branch draws the seaside garden theme
+UI RESULT 51 checks / 0 failures

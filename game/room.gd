@@ -1,14 +1,12 @@
 extends Control
+# The garden tab: house front, lane, raised beds and the gardener, drawn in
+# a 540x660 frame fitted to this control. The shop is game/shop_view.gd.
 const Art = preload("res://game/art_catalog.gd")
 var model
-var garden := false
 var clock := 0.0
 var redraw_clock := 0.0
 var pulse := 0.0
 var effect := ""
-var customers: Array = []
-var departures: Array = []
-var next_customer := 0
 var textures := {}
 var character_sheets := {}
 var actor_timers := {}
@@ -24,22 +22,14 @@ var view_xform := Transform2D.IDENTITY
 var last_sale_fx := -10.0
 const INK = Color("191b43")
 var font = ThemeDB.fallback_font
-# One oblique grid shared by the floor, walls and every prop, matched to the
-# sprites' own long (U) and depth (V) edges. Scene space is 540x660.
+# One oblique grid for the lane, beds and props, matched to the sprites' own
+# long (U) and depth (V) edges.
 const U = Vector2(52,18)
 const V = Vector2(-34,32)
-const SHOP_ORIGIN = Vector2(118,150)
 const GARDEN_ORIGIN = Vector2(430,205)
-const ROOM_U = 16.0
-const ROOM_V = 9.0
-const DOOR = Vector2(7.95,9.0)
-const DOOR_L = 6.6
-const DOOR_R = 9.3
-const QUEUE = [Vector2(10.1,6.1),Vector2(8.8,6.25),Vector2(7.5,6.45),Vector2(6.3,6.85),Vector2(5.2,7.3),Vector2(4.1,7.75),Vector2(3.0,8.15),Vector2(1.9,8.5)]
 # Garden bed slots in purchase order: two either side of the lane, then down the right.
 const GARDEN_BEDS = [Vector2(-3.1,2.4),Vector2(2.3,5.4),Vector2(2.3,2.4),Vector2(2.3,8.4),Vector2(-2.9,5.3),Vector2(2.3,11.4)]
 const BED_W = 180.0
-const VISITOR = Vector2(7.0,2.5)
 const SPROUT = [["4a9a3f","78c55a"],["3f7f3a","5ea452"],["9c3d2c","d8643f"],["2f7f8a","6cc0c8"],["3f7f3a","5ea452"]]
 const STONE = Color("eadfc8")
 # One outdoor look per branch, in economy BRANCHES order: ground, tufts and a scenery touch.
@@ -51,7 +41,6 @@ const THEMES = [
 	{"ground":"b9d86c","tuft":"97b94f","extra":"sunflowers"},
 	{"ground":"b4bfe3","tuft":"929fcc","extra":"stars"}]
 
-func iso(u:float,v:float) -> Vector2: return SHOP_ORIGIN+U*u+V*v
 func giso(u:float,v:float) -> Vector2: return GARDEN_ORIGIN+U*u+V*v
 
 func _ready():
@@ -74,14 +63,6 @@ func _ready():
 func _process(dt):
 	clock+=dt
 	pulse=maxf(0,pulse-dt)
-	if model:
-		while customers.size()<int(model.s.queue):
-			customers.append({"g":DOOR+Vector2(0,2.2),"path":[DOOR-Vector2(0,0.8)],"variant":next_customer%3,"dir":2,"moving":true,"hold":0.0})
-			next_customer+=1
-		while customers.size()>int(model.s.queue): leave_customer()
-		for i in range(customers.size()): walk(customers[i],QUEUE[mini(i,QUEUE.size()-1)],dt)
-		for c in departures: walk(c,c.path.back() if not c.path.is_empty() else c.g,dt)
-		departures=departures.filter(func(c):return not c.path.is_empty())
 	for key in actor_timers.keys(): actor_timers[key]=maxf(0,float(actor_timers[key])-dt)
 	for k in bounce.keys(): bounce[k]=maxf(0,bounce[k]-dt*2.6)
 	for q in particles:
@@ -98,73 +79,21 @@ func _process(dt):
 		redraw_clock=0
 		queue_redraw()
 
-# Customers follow waypoints in grid space, then settle on their queue spot.
-func walk(c:Dictionary,spot:Vector2,dt:float):
-	if float(c.get("hold",0.0))>0:
-		c.hold=maxf(0,float(c.hold)-dt)
-		c.moving=false
-		return
-	var from=iso(c.g.x,c.g.y)
-	var step:=dt*2.4
-	while step>0:
-		var target:Vector2=c.path[0] if not c.path.is_empty() else spot
-		var d:float=c.g.distance_to(target)
-		if d<=step:
-			c.g=target
-			step-=d
-			if c.path.is_empty(): break
-			c.path.pop_front()
-		else:
-			c.g=c.g.move_toward(target,step)
-			break
-	var delta=iso(c.g.x,c.g.y)-from
-	c.moving=delta.length()>0.1
-	if c.moving: c.dir=direction(delta)
-
-func direction(delta:Vector2) -> int:
-	if delta.y>=0: return 0 if delta.x<0 else 1
-	return 2 if delta.x<0 else 3
-
-func leave_customer():
-	if customers.is_empty(): return
-	var c=customers.pop_front()
-	c.path=[DOOR-Vector2(0,0.8),DOOR+Vector2(0,2.6)]
-	c.hold=.58
-	c.moving=false
-	departures.append(c)
-
 func spray(at:Vector2,count:int,kind:String,color:Color,speed:=160.0,up:=-120.0,g:=320.0,life:=0.9):
 	for i in range(count):
 		var dir=Vector2.from_angle(randf_range(-PI,0))*randf_range(.35,1)*speed+Vector2(0,up)
 		particles.append({"p":at+Vector2(randf_range(-14,14),randf_range(-6,6)),"v":dir,"g":g,"drag":1.2,"life":life*randf_range(.7,1.1),"max":life,"kind":kind,"color":color,"r":randf_range(3,6)*(1.6 if kind=="leaf" else 1.0),"spin":randf_range(-6,6)})
 
 func bed_center(i:int) -> Vector2:
-	if garden: return giso(GARDEN_BEDS[i].x,GARDEN_BEDS[i].y)
-	return Vector2(318,58) if i==0 else Vector2(458,96)
-
-func station_pos(id:String) -> Vector2:
-	match id:
-		"cauldron": return iso(1.7,2.8)
-		"shelf": return iso(7,1)
-		"counter": return iso(9.8,5)
-	return bed_center(0)
+	return giso(GARDEN_BEDS[i].x,GARDEN_BEDS[i].y)
 
 # Which station a tap in this control's local space lands on, if any.
 func station_at(p:Vector2) -> String:
 	var q=(p-view_offset)/view_scale
-	if not garden and not model.s.visitor.is_empty() and Rect2(iso(VISITOR.x,VISITOR.y)-Vector2(45,175),Vector2(90,180)).has_point(q): return "visitor"
-	if garden:
-		var n:int=model.s.plots.size()
-		if n<GARDEN_BEDS.size() and q.distance_to(bed_center(n))<85: return "plot"
-		for i in range(n):
-			if q.distance_to(bed_center(i))<95: return "garden"
-		return ""
-	for id in ["counter","shelf","cauldron"]:
-		var half:Vector2={"cauldron":Vector2(75,150),"shelf":Vector2(80,165),"counter":Vector2(105,150)}[id]
-		var b=station_pos(id)
-		if Rect2(b-half,Vector2(half.x*2,half.y+12)).has_point(q): return id
-	for i in range(2):
-		if q.distance_to(bed_center(i))<80: return "garden"
+	var n:int=model.s.plots.size()
+	if n<GARDEN_BEDS.size() and q.distance_to(bed_center(n))<85: return "plot"
+	for i in range(n):
+		if q.distance_to(bed_center(i))<95: return "garden"
 	return ""
 
 func badge(p:Vector2,id:String):
@@ -185,45 +114,24 @@ func burst(kind:String):
 	match kind:
 		"harvest":
 			actor_timers["gardener" if model.owned("gardener") else "owner"]=.7
-			for i in range(model.s.plots.size() if garden else 2):
+			for i in range(model.s.plots.size()):
 				spray(bed_center(i)-Vector2(0,30),9,"leaf",Color("8fd16a"),150,-180,300,1.0)
 				bounce["bed"+str(i)]=1.0
-		"brew":
-			actor_timers["brewer" if model.owned("brewer") else "owner"]=.55
-			if not garden:
-				spray(iso(1.7,2.8)-Vector2(0,105),12,"dot",Color("b58af1"),120,-150,380,.8)
-				bounce["cauldron"]=1.0
-		"stock":
-			actor_timers["brewer" if model.owned("brewer") else "owner"]=.75
-			if not garden:
-				spray(iso(7,1)-Vector2(0,70),8,"star",Color("fff1af"),110,-60,60,.8)
-				bounce["shelf"]=1.0
-				bounce["cauldron"]=.6
 		"sale","dream_sale":
-			actor_timers["cashier" if model.owned("cashier") else "owner"]=.5
-			var at=iso(9.8,5)-Vector2(30,80) if not garden else Vector2(440,60)
+			# Sales still count up in the corner while you tend the garden.
 			var amount=model.price(1 if kind=="dream_sale" else 0)
-			# Fast checkouts merge into one rising total instead of a pile of labels.
 			if clock-last_sale_fx<.35 and not floaters.is_empty() and floaters.back().has("amount"):
 				var f=floaters.back()
 				f.amount+=amount
 				f.text="+"+model.short(f.amount)
 				f.t=minf(f.t,.2)
 			else:
-				if not garden: spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
-				floaters.append({"p":at-Vector2(20,30),"t":0.0,"amount":amount,"text":"+"+model.short(amount),"dream":kind=="dream_sale","coin":true})
+				floaters.append({"p":Vector2(420,30),"t":0.0,"amount":amount,"text":"+"+model.short(amount),"dream":kind=="dream_sale","coin":true})
 			last_sale_fx=clock
-			if not garden: bounce["counter"]=.7
-		"request","vip":
-			var at=iso(VISITOR.x,VISITOR.y)-Vector2(0,110)
-			spray(at,16 if kind=="vip" else 10,"coin",Color.WHITE,220,-260,520,1.1)
-			spray(at,14,"star",Color("ffd765"),220,-140,140,1.0)
-			floaters.append({"p":at-Vector2(30,20),"t":0.0,"text":"+"+model.short(model.last_visitor_pay),"dream":kind=="vip","coin":true})
 		"level","milestone":
-			var at=station_pos(selected)-Vector2(0,70)
-			if garden or selected=="garden": at=bed_center(0)-Vector2(0,40)
-			bounce["bed0" if selected=="garden" else selected]=1.0
-			if selected=="garden": bounce["bed1"]=1.0
+			var at=bed_center(0)-Vector2(0,40)
+			bounce["bed0"]=1.0
+			bounce["bed1"]=1.0
 			if kind=="milestone":
 				spray(at,30,"star",Color("ffd765"),320,-160,160,1.3)
 				spray(at,16,"dot",Color("b58af1"),260,-180,260,1.1)
@@ -290,15 +198,6 @@ func pose_row(action:String,phase:=0.0) -> int:
 func actor_action(name:String,working:=false) -> String:
 	if float(actor_timers.get(name,0.0))>0: return "pickup"
 	return "work" if working else "idle"
-
-func customer_name(c:Dictionary) -> String:
-	return ["customer0","customer1","departing"][int(c.variant)%3]
-
-func customer_action(c:Dictionary) -> String:
-	if float(c.get("hold",0.0))>0: return "pickup"
-	if bool(c.get("moving",false)): return "walk"
-	if model.s.serving and not customers.is_empty() and c==customers[0]: return "work"
-	return "idle"
 
 func text(p:Vector2,s:String,n:=18,c:=INK):
 	draw_string(font,p,s,HORIZONTAL_ALIGNMENT_LEFT,-1,n,c)
@@ -386,7 +285,6 @@ func crop_plant(p:Vector2,crop:int,stage:float,size:float):
 const BED_SOIL = {"bed_t1":[Vector2(66,124),Vector2(141,58),Vector2(350,152),Vector2(259,213)],"bed_t2":[Vector2(68,136),Vector2(154,69),Vector2(354,162),Vector2(258,225)],"bed_t3":[Vector2(71,152),Vector2(183,77),Vector2(360,175),Vector2(252,239)]}
 # The bed art is painted steeper than the U axis; this shear levels its long side.
 const BED_SHEAR = -0.11
-const COUNTER_SHEAR = 0.1
 
 # A raised bed drawn from its centre, with a 3x2 grid of plants in the soil.
 func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
@@ -414,27 +312,6 @@ func garden_bed(center:Vector2,w:float,plot:Dictionary,key:String):
 # u runs along the long side, v from the back edge to the front edge.
 func soil_point(c:Array,u:float,v:float) -> Vector2:
 	return c[1].lerp(c[2],u).lerp(c[0].lerp(c[3],u),v)
-
-func wall(a:Vector2,b:Vector2,h:float,face:=Color("ecd8c3"),low:=Color("d8c4b2"),trim:=Color("c98c62"),motif:="plain"):
-	poly([a,b,b-Vector2(0,h),a-Vector2(0,h)],face,true)
-	poly([a,b,b-Vector2(0,h*.29),a-Vector2(0,h*.29)],low)
-	draw_line(a-Vector2(0,h*.29),b-Vector2(0,h*.29),Color("f9e9d3"),2,true)
-	draw_line(a-Vector2(0,h),b-Vector2(0,h),trim.darkened(.35),18,true)
-	draw_line(a-Vector2(0,h+3),b-Vector2(0,h+3),trim,11,true)
-	if motif=="panel":
-		for t in [.25,.65]:
-			var q=a.lerp(b,t)-Vector2(0,h*.62)
-			draw_line(q-Vector2(0,24),q+Vector2(0,24),trim,2,true)
-	elif motif=="vine":
-		for t in [.2,.5,.8]:
-			var q=a.lerp(b,t)-Vector2(0,h*.24)
-			draw_line(q,q-Vector2(0,h*.46),Color("579162"),2,true)
-			for k in range(3): mint_leaf(q-Vector2(0,k*18+7),q+Vector2(10 if k%2 else -10,-k*18-17),4,Color("78a76d"))
-	for p in [a,b]: post(p,h)
-
-func post(p:Vector2,h:float):
-	draw_line(p,p-Vector2(0,h+9),Color("966144"),19,true)
-	draw_line(p-Vector2(3,0),p-Vector2(3,h+9),Color("bd8159"),12,true)
 
 func theme() -> Dictionary:
 	return THEMES[int(model.s.prestige.branches) % THEMES.size()]
@@ -630,174 +507,6 @@ func draw_watering_can(p:Vector2):
 	poly([p+Vector2(38,-44),p+Vector2(50,-36),p+Vector2(44,-30)],Color("3b8798"))
 	draw_arc(p-Vector2(2,40),14,PI,TAU,14,Color("2f6f80"),5,true)
 
-func draw_sign(p:Vector2):
-	draw_line(p+Vector2(-24,0),p+Vector2(-10,-74),Color("7a4b2f"),6,true)
-	draw_line(p+Vector2(24,0),p+Vector2(10,-74),Color("7a4b2f"),6,true)
-	poly([p+Vector2(-26,-14),p+Vector2(26,-14),p+Vector2(16,-70),p+Vector2(-16,-70)],Color("3e4659"),true,Color("7a4b2f"))
-	# Chalk flask: round body, neck and cork.
-	var b=p-Vector2(0,34)
-	var chalk=Color("f3efe6")
-	var flask=[]
-	for k in range(21):
-		var t=-PI*.32+k*(PI*1.64/20)
-		flask.append(b+Vector2(cos(t+PI/2)*11,sin(t+PI/2)*11))
-	flask.append(b+Vector2(-4,-10))
-	flask.append(b+Vector2(-4,-19))
-	flask.append(b+Vector2(4,-19))
-	flask.append(b+Vector2(4,-10))
-	draw_polyline(PackedVector2Array(flask+[flask[0]]),chalk,2.2,true)
-	draw_line(b+Vector2(-6,-21),b+Vector2(6,-21),chalk,3,true)
-	draw_line(b+Vector2(-7,3),b+Vector2(7,3),Color(chalk,.6),1.6,true)
-
-func draw_visitor():
-	if model.s.visitor.is_empty(): return
-	var v:Dictionary=model.s.visitor
-	var p=iso(VISITOR.x,VISITOR.y)
-	var vip:bool=v.kind=="vip"
-	person("customer1" if vip else "customer0",p,72,0,"work" if model.visitor_potion()>=0 else "idle")
-	if vip:
-		var c=p-Vector2(0,104)
-		poly([c+Vector2(-15,8),c+Vector2(15,8),c+Vector2(18,-10),c+Vector2(8,-2),c+Vector2(0,-14),c+Vector2(-8,-2),c+Vector2(-18,-10)],Color("f2c94c"),true,Color("b9822a"))
-	# Speech bubble: wanted potion (or any, for a VIP), pay multiplier, countdown ring.
-	var ready:bool=model.visitor_potion()>=0
-	var b=p-Vector2(0,150)+Vector2(0,sin(clock*3)*2)
-	var st=StyleBoxFlat.new()
-	st.bg_color=Color("fff7eb")
-	st.border_color=Color("f2b632") if vip else Color("b58af1")
-	st.set_border_width_all(3)
-	st.set_corner_radius_all(16)
-	draw_style_box(st,Rect2(b-Vector2(46,24),Vector2(92,44)))
-	poly([b+Vector2(-7,19),b+Vector2(7,19),b+Vector2(0,30)],Color("fff7eb"))
-	var icon=Art.name_for(Art.POTIONS[model.visitor_potion() if vip and ready else int(v.recipe)],model.level("cauldron"))
-	if vip and not ready: icon="energy_t1"
-	sprite(icon,b+Vector2(-22,16),26,Color.WHITE if ready else Color(1,1,1,.45))
-	text(b+Vector2(-4,7),"×%d" % int(model.cfg.visitors.vip_pay if vip else model.cfg.visitors.request_pay),20,Color("b9822a") if vip else Color("7b3fd1"))
-	var left:float=clampf(v.left/float(model.cfg.visitors.wait),0,1)
-	draw_arc(b+Vector2(36,-14),9,-PI/2,-PI/2+TAU*left,20,Color("e46b5a") if left<.3 else Color("5fbf6a"),4,true)
-	if ready and fmod(clock,1.2)<.6: twinkle(b+Vector2(-40,-20),6,Color("fff1af"))
-
-func draw_shop():
-	var renovated=model.owned("renovation")
-	var floor_style:Dictionary=Art.FLOORS[int(model.s.decor.floor)]
-	var wall_style:Dictionary=Art.WALLS[int(model.s.decor.wall)]
-	lawn()
-	# Outside, beyond the back wall: the two herb beds and stepping stones.
-	for p in [Vector2(372,170),Vector2(404,150),Vector2(436,132)]: oval(p,Vector2(14,6),Color("dad3c2"))
-	sprite(Art.name_for("bush",model.level("garden")),Vector2(210,40),130)
-	sprite(Art.name_for("bush",model.level("garden")),Vector2(560,90),150)
-	for i in range(2): garden_bed(bed_center(i),150,model.s.plots[i],"bed"+str(i))
-	# Floor on the shared grid.
-	var tile_a=Color(floor_style.a)
-	var tile_b=Color(floor_style.b)
-	poly(quad(iso(0,0),U*ROOM_U,V*ROOM_V),tile_a)
-	for u in range(int(ROOM_U)):
-		for v in range(int(ROOM_V)):
-			if (u+v)%2: poly(quad(iso(u,v),U,V),tile_b)
-			if (u+v)%5==0 and floor_style.motif=="diamond":
-				var centre=iso(u+.5,v+.5)
-				poly([centre+Vector2(0,-5),centre+Vector2(6,0),centre+Vector2(0,5),centre+Vector2(-6,0)],Color(Color("b995e4"),.45))
-			elif (u+v)%5==0 and floor_style.motif=="leaf":
-				var centre=iso(u+.5,v+.5)
-				mint_leaf(centre-Vector2(4,3),centre+Vector2(5,-5),3,Color(Color("70aa6f"),.4))
-	var line=Color(floor_style.line)
-	for u in range(int(ROOM_U)+1): draw_line(iso(u,0),iso(u,ROOM_V),line,1.2,true)
-	for v in range(int(ROOM_V)+1): draw_line(iso(0,v),iso(ROOM_U,v),line,1.2,true)
-	var face=Color(wall_style.face)
-	var low=Color(wall_style.low)
-	var trim=Color(wall_style.trim)
-	wall(iso(0,ROOM_V),iso(0,0),112,face,low,trim,wall_style.motif)
-	wall(iso(0,0),iso(3.6,0),112,face,low,trim,wall_style.motif)
-	sprite("gate",iso(4.25,0)+Vector2(0,8),92)
-	wall(iso(4.9,0),iso(ROOM_U,0),112,face,low,trim,wall_style.motif)
-	if renovated:
-		for i in range(9):
-			var p=iso(.5+i*1.6,0)-Vector2(0,96)
-			draw_line(p,p+U*1.6,Color("6d5a4a"),1.2,true)
-			draw_circle(p+U*.8+Vector2(0,6),4.5,Color("fff1af",.6+.4*sin(clock*3+i)))
-		# Mounted on top of the back wall, clear of the brewer's head.
-		var board=iso(.25,0)-Vector2(0,146)
-		for k in [.2,.8]: draw_line(board+U*1.75*k+Vector2(0,30),board+U*1.75*k+Vector2(0,34),Color("6d5a4a"),4,true)
-		poly(quad(board,U*1.75,Vector2(0,30)),Color("7d52c9"),true,Color("5b3a9e"))
-		draw_set_transform_matrix(view_xform*shear_at(board,U.y/U.x))
-		text(board+Vector2(8,22),"Little Lux",15,Color("fff7eb"))
-		draw_set_transform_matrix(view_xform)
-	badge(bed_center(0)+Vector2(-62,-6),"garden")
-	# Back row: shelf against the back wall, cauldron in the corner.
-	sprite(Art.name_for("plant",model.level("garden")),iso(5.6,.8),46)
-	sprite_bounce(Art.name_for("shelf",model.level("shelf")),iso(7,1),150,"shelf")
-	shelf_bottles(iso(7,1),150)
-	badge(iso(7,1)+Vector2(-48,-24),"shelf")
-	var cauldron=iso(1.7,2.8)
-	if model.owned("brewer"): person("brewer",iso(2.95,2.05),78,0,actor_action("brewer",model.s.pot!=-1),.3)
-	elif model.s.pot!=-1: person("owner",iso(2.95,2.05),83,0,actor_action("owner",not model.s.ready),.3)
-	if model.s.pot!=-1:
-		oval(cauldron-Vector2(0,24),Vector2(66,28),Color("b38bff"))
-		oval(cauldron-Vector2(0,24),Vector2(61,24),Color("fff6ff"))
-	sprite_bounce(Art.name_for("cauldron",model.level("cauldron")),cauldron,140,"cauldron")
-	if model.s.ready: glints(cauldron-Vector2(0,85),Vector2(45,12),.2)
-	badge(cauldron+Vector2(0,-2),"cauldron")
-	if model.s.pot!=-1:
-		pill(cauldron+Vector2(-58,-178),"Ready to stock" if model.s.ready else "Brewing",model.s.brew_progress/model.brew_time(model.s.pot),115)
-		for i in range(5):
-			var t=fmod(clock*.5+i*.2,1.0)
-			draw_circle(cauldron+Vector2(sin(i*3+clock)*26,-95-t*55),3+2*t,Color(.8,.6,1,1-t))
-	# Ingredient crates in a tidy row along U.
-	sprite("leaves",iso(1.6,5),92)
-	sprite("flowers",iso(3.1,5),92)
-	if model.owned("brewer") or model.s.pot==-1:
-		var u=5.6+sin(clock*.6)*.55
-		var v=4.0+cos(clock*.6)*.35
-		var travel=U*(cos(clock*.6)*.55)-V*(sin(clock*.6)*.35)
-		person("owner",iso(u,v),90,direction(travel),"walk" if float(actor_timers.get("owner",0.0))<=0 else "pickup",.7)
-	draw_visitor()
-	if model.owned("cashier"): person("cashier",iso(8.8,3.1),70,0,actor_action("cashier",model.s.serving),.8)
-	# The counter art is painted flatter than the floor; shear its long side onto U.
-	sprite_bounce(Art.name_for("counter",model.level("counter")),iso(9.8,5),206,"counter",COUNTER_SHEAR)
-	badge(iso(9.8,5)-Vector2(-20,36),"counter")
-	var inside=[]
-	var outside=[]
-	for c in customers+departures:
-		if c.g.y<ROOM_V: inside.append(c)
-		else: outside.append(c)
-	inside.sort_custom(func(a,b):return iso(a.g.x,a.g.y).y<iso(b.g.x,b.g.y).y)
-	for c in inside: person(customer_name(c),iso(c.g.x,c.g.y),70,int(c.get("dir",2)),customer_action(c),float(c.g.x)*.3)
-	# Front wall with an archway, then the street side.
-	wall(iso(0,ROOM_V),iso(DOOR_L,ROOM_V),91,face,low,trim,wall_style.motif)
-	wall(iso(DOOR_R,ROOM_V),iso(ROOM_U,ROOM_V),91,face,low,trim,wall_style.motif)
-	var al=iso(DOOR_L,ROOM_V)-Vector2(0,100)
-	var ar=iso(DOOR_R,ROOM_V)-Vector2(0,100)
-	var arch=PackedVector2Array()
-	for k in range(17): arch.append(al.lerp(ar,k/16.0)-Vector2(0,28*sin(PI*k/16.0)))
-	draw_polyline(arch,Color("966144"),18,true)
-	var lip=PackedVector2Array()
-	for q in arch: lip.append(q-Vector2(0,3))
-	draw_polyline(lip,Color("c98c62"),10,true)
-	poly(quad(iso(7.2,9.35),U*1.5,V*1.1),Color("d9b082"),true)
-	for c in outside: person(customer_name(c),iso(c.g.x,c.g.y),70,int(c.get("dir",2)),customer_action(c),float(c.g.x)*.3)
-	draw_sign(iso(5.3,9.9))
-	sprite(Art.name_for("plant",model.level("garden")),iso(6.2,9.5),44)
-	sprite(Art.name_for("plant",model.level("garden")),iso(9.95,9.55),52)
-	for p in [Vector2(28,600),Vector2(95,640),Vector2(400,700),Vector2(530,690)]: sprite(Art.name_for("bush",model.level("garden")),p,115)
-
-func shelf_bottles(base:Vector2,w:float):
-	# Bottles stand on the shelf's two boards, following the boards' slope.
-	var sc=w/359.0
-	var origin=base-Vector2(179.5,377)*sc
-	# Most valuable potions first, matching the order customers buy them.
-	var kinds=[]
-	for r in range(model.s.stock.size()-1,-1,-1):
-		for n in range(int(model.s.stock[r])): kinds.append(r)
-	var count=mini(kinds.size(),12)
-	var per_row=3 if model.capacity()<=6 else 6
-	var bw=30.0 if per_row==3 else 21.0
-	for i in range(count):
-		var r=i/per_row
-		var k=i%per_row
-		var a=Vector2(70,158+r*103)
-		var b=Vector2(250,207+r*103)
-		var p=origin+a.lerp(b,(k+.5)/per_row)*sc
-		sprite(Art.name_for(Art.POTIONS[kinds[i]],model.level("cauldron")),p,bw)
-
 func draw_effects():
 	for q in particles:
 		var a=clampf(q.life/q.max*1.6,0,1)
@@ -830,12 +539,6 @@ func _draw():
 	view_scale=factor
 	view_xform=Transform2D(0,Vector2.ONE*factor,0,view_offset)
 	draw_set_transform_matrix(view_xform)
-	if garden: draw_garden()
-	else: draw_shop()
-	if pulse>0 and effect=="stock" and not garden:
-		# Arc the new bottle from cauldron to shelf.
-		var t=clampf((1.2-pulse)/.6,0,1)
-		var p=iso(1.7,2.8).lerp(iso(7,1),t)-Vector2(0,110+sin(t*PI)*70)
-		if t<1: sprite(Art.name_for(Art.POTIONS[int(model.s.recipe)],model.level("cauldron")),p,31)
+	draw_garden()
 	draw_effects()
 	draw_set_transform(Vector2.ZERO)

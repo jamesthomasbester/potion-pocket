@@ -7,6 +7,15 @@ func check(value: bool,name: String):
 	print("PASS " if value else "FAIL ",name)
 func _initialize():
 	call_deferred("run")
+# A real touch at a point on screen, as a player's finger would make.
+func tap_at(app,point:Vector2):
+	for pressed in [true,false]:
+		var e:=InputEventScreenTouch.new()
+		e.index=0
+		e.position=point
+		e.pressed=pressed
+		Input.parse_input_event(e)
+		await process_frame
 func run():
 	var app=load("res://game/main.tscn").instantiate()
 	root.add_child(app)
@@ -87,15 +96,16 @@ func run():
 	check(app.model.level("cauldron")==2 and app.model.s.coins==0,"context card levels the cauldron for its listed cost")
 	check(is_equal_approx(app.model.brew_time(0),3.0/1.06),"level up changes actual brew duration")
 	check(app.card_title.text=="Cauldron · Lv. 2","card shows the new level")
-	var counter_point=app.room.view_offset+app.room.station_pos("counter")*app.room.view_scale-Vector2(0,40*app.room.view_scale)
-	press=InputEventMouseButton.new()
-	press.button_index=MOUSE_BUTTON_LEFT
-	press.pressed=true
-	press.position=counter_point
-	app.room.gui_input.emit(press)
+	var counter=app.shop.prop("Counter")
+	await tap_at(app,counter.to_global(Vector2(0,-90)))
 	check(app.selected_station=="counter" and "Counter" in app.card_title.text,"tapping the counter selects its station")
+	await tap_at(app,app.shop.prop("Lectern").to_global(Vector2(0,-200)))
+	check(app.upgrade_layer.visible and app.upgrade_title.text=="Recipe Book","tapping the lectern opens the Recipe Book")
+	app.upgrade_layer.hide()
 	check(app.coins_label.text=="0","coin header displays integer balance")
-	check(app.room.clip_contents and app.room.size.y>=340,"scene stays clipped inside responsive scene area")
+	var room_rect:Rect2=app.shop.get_node("Room").get_global_transform()*app.shop.get_node("Room").get_rect()
+	var card_top:float=app.get_node("%Card").get_global_rect().position.y
+	check(room_rect.end.y<=card_top+40 and room_rect.position.y>=app.stage.get_global_rect().position.y-40,"the stage frames the whole room above the card")
 	app.show_decor()
 	check(app.purchase_buttons["decor_floor_1"].disabled and app.purchase_buttons["decor_floor_0"].disabled,"decor menu shows locked and selected floor choices")
 	app.model.s.coins=320
@@ -105,23 +115,49 @@ func run():
 	await process_frame
 	await app.tap(app.purchase_buttons["decor_floor_0"])
 	check(app.model.s.decor.floor==0 and app.model.s.decor.wall==1,"touch choice switches only the floor")
-	check(app.room.textures.has("cauldron_t3") and app.room.textures.has("moonflower_t3"),"master furniture and plants are loaded into the playable scene")
-	for name in ["owner","brewer","cashier","gardener","customer0","customer1","departing"]:
-		var sheet:Texture2D=app.room.character_sheets.get(name)
+	app.model.s.levels.cauldron=7
+	app.shop.refresh_art()
+	check(app.shop.prop("Cauldron").texture==app.shop.textures["cauldron_t3"],"cauldron art moves to its third tier at Lv. 7")
+	check(app.shop.prop("Rug").texture==app.shop.textures["rug_t1"],"rug follows the chosen décor")
+	for name in ["owner","brewer","cashier","customer0","customer1","departing"]:
+		var sheet:Texture2D=app.shop.sheets.get(name)
 		check(sheet!=null and sheet.get_width()==1024 and sheet.get_height()==1024,"16 aligned poses loaded: "+name)
-	check(app.room.direction(Vector2(-1,1))==0 and app.room.direction(Vector2(1,1))==1 and app.room.direction(Vector2(-1,-1))==2 and app.room.direction(Vector2(1,-1))==3,"all four travel directions select distinct facing columns")
-	app.room.clock=0
-	check(app.room.pose_row("idle")==0 and app.room.pose_row("walk")==1 and app.room.pose_row("pickup")==2 and app.room.pose_row("work")==3,"idle, stride, pickup and work select real pose rows")
-	app.room.clock=.2
-	var walk_recovery=app.room.pose_row("walk")==0
-	app.room.clock=.32
-	check(walk_recovery and app.room.pose_row("work")==0,"walk and work progress to their second keyframe")
-	var visitor={"g":app.room.DOOR,"path":[],"dir":2,"moving":false,"hold":.5,"variant":0}
-	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.2)
-	check(not visitor.moving and visitor.g==app.room.DOOR and app.room.customer_action(visitor)=="pickup","customer pauses to pick up a purchase")
-	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.5)
-	app.room.walk(visitor,app.room.DOOR+Vector2(1,0),.2)
-	check(visitor.moving and visitor.dir==1 and app.room.customer_action(visitor)=="walk","customer resumes with direction-aware walking")
+	check(app.shop.direction(Vector2(-1,1))==0 and app.shop.direction(Vector2(1,1))==1 and app.shop.direction(Vector2(-1,-1))==2 and app.shop.direction(Vector2(1,-1))==3,"all four travel directions select distinct facing columns")
+	var actor=app.shop.owner_actor
+	actor.phase=0
+	actor.clock=0
+	var rows:=[]
+	for action in ["idle","walk","pickup","work"]:
+		actor.action=action
+		rows.append(actor.pose_row())
+	check(rows==[0,1,2,3],"idle, stride, pickup and work select real pose rows")
+	actor.clock=.2
+	actor.action="walk"
+	var walk_recovery=actor.pose_row()==0
+	actor.clock=.32
+	actor.action="work"
+	check(walk_recovery and actor.pose_row()==0,"walk and work progress to their second keyframe")
+	app.model.s.queue=2
+	app.shop._process(.1)
+	check(app.shop.customers.size()==2 and app.shop.customers[0].actor.get_parent()==app.shop.props,"queued customers appear in the room, depth-sorted with furniture")
+	for i in range(80): app.shop._process(.1)
+	check(app.shop.customers[0].g==app.shop.QUEUE[0] and not app.shop.customers[0].moving,"the first customer walks in to the counter")
+	app.model.s.queue=1
+	app.shop._process(.1)
+	check(app.shop.customers.size()==1 and app.shop.departures.size()==1 and app.shop.departures[0].hold>0,"a served customer pauses with their purchase, then leaves")
+	app.model.s.queue=0
+	for i in range(80): app.shop._process(.1)
+	check(app.shop.departures.is_empty(),"departed customers are removed once outside")
+	app.upgrade_layer.hide()
+	app.model.s.owned.recipe=true
+	app.model.s.stock[0]=1
+	app.model.s.visitor={"kind":"request","recipe":0,"left":20.0}
+	app.shop._process(.1)
+	var coins_before=app.model.s.coins
+	await tap_at(app,app.shop.visitor.to_global(Vector2(0,-60)))
+	check(app.model.s.visitor.is_empty() and app.model.s.coins>coins_before,"tapping a special visitor serves them")
+	app.shop._process(.1)
+	check(app.shop.visitor==null,"served visitor leaves the room")
 	app.model.s.coins=1000
 	app.model.s.owned.gardener=true
 	app.show_upgrades(true)
@@ -141,7 +177,7 @@ func run():
 	check(app.model.talent("roots")==1 and app.purchase_buttons["tl_roots"].disabled and app.purchase_buttons["tl_roots"].text=="★ 2","Improve card spends a Moon Star on a talent")
 	app.upgrade_layer.hide()
 	app.model.s.prestige.branches=1
-	check(app.room.theme().extra=="sea","second branch draws the seaside theme")
+	check(app.room.theme().extra=="sea","second branch draws the seaside garden theme")
 	app.sound.set_muted(true)
 	await create_timer(0.4).timeout
 	app.queue_free()

@@ -24,3 +24,7 @@ static func tier(level: int) -> int:
 
 static func name_for(family: String, level: int) -> String:
 	return "%s_t%d" % [family,tier(level)]
+
+# Décor names in the shop: the floor choice picks the rug, the wall choice the planter.
+const RUGS = ["Woven rug","Moon rug","Starry moon rug"]
+const PLANTERS = ["Clay pot","Glazed planter","Royal planter"]

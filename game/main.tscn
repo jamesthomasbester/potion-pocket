@@ -1,10 +1,401 @@
-[gd_scene load_steps=2 format=3]
-[ext_resource type="Script" path="res://game/main.gd" id="1"]
-[node name="LittleLux" type="Control"]
-layout_mode=3
-anchors_preset=15
-anchor_right=1.0
-anchor_bottom=1.0
-grow_horizontal=2
-grow_vertical=2
-script=ExtResource("1")
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://game/shop_view.gd" id="2_view"]
+[ext_resource type="Texture2D" path="res://game/art/shop/sky.png" id="3_sky"]
+[ext_resource type="Texture2D" path="res://game/art/shop/room.png" id="4_room"]
+[ext_resource type="Texture2D" path="res://game/art/shop/rug_t1.png" id="5_rug"]
+[ext_resource type="Texture2D" path="res://game/art/shop/door_mat_t1.png" id="6_mat"]
+[ext_resource type="Texture2D" path="res://game/art/shop/cauldron_t1.png" id="7_cauldron"]
+[ext_resource type="Texture2D" path="res://game/art/shop/workbench_t1.png" id="8_bench"]
+[ext_resource type="Texture2D" path="res://game/art/shop/bookcase_t1.png" id="9_bookcase"]
+[ext_resource type="Texture2D" path="res://game/art/shop/potion_shelf_t1.png" id="10_shelf"]
+[ext_resource type="Texture2D" path="res://game/art/shop/lectern_t1.png" id="11_lectern"]
+[ext_resource type="Texture2D" path="res://game/art/shop/books_t1.png" id="12_books"]
+[ext_resource type="Texture2D" path="res://game/art/shop/plant_t1.png" id="13_plant"]
+[ext_resource type="Texture2D" path="res://game/art/shop/counter_t1.png" id="14_counter"]
+[ext_resource type="Texture2D" path="res://game/art/ui/coin.png" id="15_coin"]
+[ext_resource type="Texture2D" path="res://game/art/scroll.svg" id="16_scroll"]
+[ext_resource type="Texture2D" path="res://game/art/ui/gear.png" id="17_gear"]
+[ext_resource type="Texture2D" path="res://game/art/ui/shop.png" id="18_shop"]
+[ext_resource type="Texture2D" path="res://game/art/ui/garden.png" id="19_garden"]
+[ext_resource type="Texture2D" path="res://game/art/brewer.png" id="20_team"]
+[ext_resource type="Texture2D" path="res://game/art/ui/potion.png" id="21_potion"]
+[ext_resource type="Texture2D" path="res://game/art/ui/market.png" id="22_market"]
+[ext_resource type="Texture2D" path="res://game/art/shop/cauldron_t1.png" id="23_card"]
+
+[node name="Game" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_main")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.29, 0.18, 0.5, 1)
+
+[node name="Sky" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_sky")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="World" type="Node2D" parent="."]
+script = ExtResource("2_view")
+
+[node name="Room" type="Sprite2D" parent="World"]
+position = Vector2(268, 350)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("4_room")
+
+[node name="Decals" type="Node2D" parent="World"]
+
+[node name="Rug" type="Sprite2D" parent="World/Decals"]
+position = Vector2(227, 502)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("5_rug")
+
+[node name="DoorMat" type="Sprite2D" parent="World/Decals"]
+position = Vector2(272, 626)
+scale = Vector2(0.32, 0.32)
+texture = ExtResource("6_mat")
+
+[node name="Props" type="Node2D" parent="World"]
+y_sort_enabled = true
+
+[node name="Cauldron" type="Sprite2D" parent="World/Props"]
+position = Vector2(270, 411.4)
+scale = Vector2(0.32, 0.32)
+texture = ExtResource("7_cauldron")
+offset = Vector2(0, -123.1)
+
+[node name="Workbench" type="Sprite2D" parent="World/Props"]
+position = Vector2(161, 459.8)
+scale = Vector2(0.368, 0.368)
+texture = ExtResource("8_bench")
+offset = Vector2(0, -113.5)
+
+[node name="Bookcase" type="Sprite2D" parent="World/Props"]
+position = Vector2(38, 525.7)
+scale = Vector2(0.48, 0.48)
+texture = ExtResource("9_bookcase")
+offset = Vector2(0, -199.3)
+
+[node name="PotionShelf" type="Sprite2D" parent="World/Props"]
+position = Vector2(501, 519.8)
+scale = Vector2(0.48, 0.48)
+texture = ExtResource("10_shelf")
+offset = Vector2(0, -195.4)
+
+[node name="Lectern" type="Sprite2D" parent="World/Props"]
+position = Vector2(366, 455.8)
+scale = Vector2(0.24, 0.24)
+texture = ExtResource("11_lectern")
+offset = Vector2(0, -145.2)
+
+[node name="Books" type="Sprite2D" parent="World/Props"]
+position = Vector2(438, 490.7)
+scale = Vector2(0.16, 0.16)
+texture = ExtResource("12_books")
+offset = Vector2(0, -148.2)
+
+[node name="Plant" type="Sprite2D" parent="World/Props"]
+position = Vector2(265, 569)
+scale = Vector2(0.16, 0.16)
+texture = ExtResource("13_plant")
+offset = Vector2(0, -162.5)
+
+[node name="Counter" type="Sprite2D" parent="World/Props"]
+position = Vector2(345, 591.3)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("14_counter")
+offset = Vector2(0, -56.7)
+
+[node name="Overlay" type="Node2D" parent="World"]
+z_index = 10
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="HUD"]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Layout" type="VBoxContainer" parent="HUD/Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="TopBar" type="MarginContainer" parent="HUD/Root/Layout"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+
+[node name="Row" type="HBoxContainer" parent="HUD/Root/Layout/TopBar"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="CoinPill" type="PanelContainer" parent="HUD/Root/Layout/TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CoinRow" type="HBoxContainer" parent="HUD/Root/Layout/TopBar/Row/CoinPill"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="CoinIcon" type="TextureRect" parent="HUD/Root/Layout/TopBar/Row/CoinPill/CoinRow"]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("15_coin")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CoinLabel" type="Label" parent="HUD/Root/Layout/TopBar/Row/CoinPill/CoinRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 0)
+layout_mode = 2
+text = "0"
+
+[node name="Title" type="Label" parent="HUD/Root/Layout/TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Little Lux"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="DailyButton" type="Button" parent="HUD/Root/Layout/TopBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+icon = ExtResource("16_scroll")
+icon_alignment = 1
+expand_icon = true
+
+[node name="SettingsButton" type="Button" parent="HUD/Root/Layout/TopBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+icon = ExtResource("17_gear")
+icon_alignment = 1
+expand_icon = true
+
+[node name="Goal" type="MarginContainer" parent="HUD/Root/Layout"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+
+[node name="GoalPanel" type="PanelContainer" parent="HUD/Root/Layout/Goal"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="GoalStack" type="VBoxContainer" parent="HUD/Root/Layout/Goal/GoalPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="GoalRow" type="HBoxContainer" parent="HUD/Root/Layout/Goal/GoalPanel/GoalStack"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Star" type="Label" parent="HUD/Root/Layout/Goal/GoalPanel/GoalStack/GoalRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "★"
+
+[node name="Objective" type="Label" parent="HUD/Root/Layout/Goal/GoalPanel/GoalStack/GoalRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="GoalBar" type="ProgressBar" parent="HUD/Root/Layout/Goal/GoalPanel/GoalStack"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+mouse_filter = 2
+show_percentage = false
+
+[node name="Stage" type="Control" parent="HUD/Root/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Card" type="PanelContainer" parent="HUD/Root/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CardStack" type="VBoxContainer" parent="HUD/Root/Layout/Card"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Info" type="HBoxContainer" parent="HUD/Root/Layout/Card/CardStack"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CardTile" type="PanelContainer" parent="HUD/Root/Layout/Card/CardStack/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CardIcon" type="TextureRect" parent="HUD/Root/Layout/Card/CardStack/Info/CardTile"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("23_card")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Copy" type="VBoxContainer" parent="HUD/Root/Layout/Card/CardStack/Info"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="CardTitle" type="Label" parent="HUD/Root/Layout/Card/CardStack/Info/Copy"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cauldron · Lv. 1"
+
+[node name="CardDetail" type="Label" parent="HUD/Root/Layout/Card/CardStack/Info/Copy"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CardMilestone" type="Label" parent="HUD/Root/Layout/Card/CardStack/Info/Copy"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LevelButton" type="Button" parent="HUD/Root/Layout/Card/CardStack/Info"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 62)
+layout_mode = 2
+size_flags_horizontal = 8
+
+[node name="Status" type="Label" parent="HUD/Root/Layout/Card/CardStack"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Chips" type="HBoxContainer" parent="HUD/Root/Layout/Card/CardStack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Actions" type="HBoxContainer" parent="HUD/Root/Layout/Card/CardStack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PrimaryButton" type="Button" parent="HUD/Root/Layout/Card/CardStack/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SecondaryButton" type="Button" parent="HUD/Root/Layout/Card/CardStack/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BottomBar" type="PanelContainer" parent="HUD/Root/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Tabs" type="HBoxContainer" parent="HUD/Root/Layout/BottomBar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ShopButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Shop"
+icon = ExtResource("18_shop")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="GardenButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Garden"
+icon = ExtResource("19_garden")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="TeamButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Team"
+icon = ExtResource("20_team")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="RecipesButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Recipes"
+icon = ExtResource("21_potion")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="UpgradesButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Upgrades"
+icon = ExtResource("22_market")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true

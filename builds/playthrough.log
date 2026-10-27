@@ -1,19 +1,28 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
-WARNING: Failed to create wd.xic as the input method or its xim server may not have started yet.
-     at: _create_xic (platform/linuxbsd/x11/display_server_x11.cpp:6347)
 WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
      at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
-OpenGL API 4.5 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.2 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 20.1.2, 256 bits)
+OpenGL API 4.5 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.4 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 20.1.2, 256 bits)
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+ERROR: Condition "status < 0" is true. Returning: ERR_CANT_OPEN
+   at: init_output_device (drivers/alsa/audio_driver_alsa.cpp:97)
+WARNING: All audio drivers failed, falling back to the dummy driver.
+     at: initialize (servers/audio/audio_server.cpp:258)
 
-PLAY purchase gardener at 21.3
-PLAY purchase brewer at 51.4000000000005
-PLAY purchase cashier at 83.1999999999995
-PLAY purchase recipe at 101.099999999999
-PLAY purchase renovation at 207.299999999993
-PLAY purchase grow at 219.899999999992
-PLAY purchase brew at 235.599999999991
-PLAY purchase capacity at 243.99999999999
-PLAY purchase service at 251.39999999999
-PLAY FINAL {"arrival":0.1,"brew_progress":2.1,"coins":424,"crop":1,"elapsed":327.100000000006,"flags":{"first_brew":true,"first_harvest":true,"first_sale":true,"first_upgrade":true,"tutorial_complete":true},"herbs":[22,24],"muted":false,"offline_notice":{},"owned":{"brew":true,"brewer":true,"capacity":true,"cashier":true,"gardener":true,"grow":true,"recipe":true,"renovation":true,"service":true},"plots":[{"crop":1,"progress":2.0},{"crop":1,"progress":5.33333333333333}],"pot":1,"queue":1,"ready":false,"recipe":1,"service":0.2,"serving":true,"stock":[0,2],"timestamp":1792832484.50133,"tutorial":8,"version":1}
-WARNING: 2 ObjectDB instances were leaked at exit (run with `--verbose` for details).
-   at: cleanup (core/object/object.cpp:2536)
+UI viewport=(540.0, 960.0) primary=[P: (16.0, 794.0), S: (249.0, 60.0)] garden_tab=[P: (112.0, 876.0), S: (102.0, 76.0)]
+PLAY purchase gardener at 21.4
+PLAY purchase brewer at 51.5000000000005
+PLAY purchase cashier at 83.0999999999996
+PLAY purchase recipe at 100.199999999999
+PLAY purchase renovation at 206.099999999993
+PLAY purchase grow at 218.099999999992
+PLAY purchase brew at 234.799999999991
+PLAY purchase capacity at 245.39999999999
+PLAY purchase service at 250.69999999999
+PLAY FINAL {"achievements":{"first_sale":true,"glow_up":true,"team":true},"arrival":0.9,"brew_progress":0.4,"coins":52,"daily":{"day":"2026-10-27","quests":[{"claimed":false,"kind":"brewed","progress":53,"reward":160,"target":53},{"claimed":false,"kind":"sold","progress":53,"reward":160,"target":53},{"claimed":false,"kind":"earned","progress":426,"reward":160,"target":426}]},"decor":{"floor":1,"manual_floor":false,"manual_wall":false,"wall":1},"elapsed":300.9,"flags":{"first_brew":true,"first_harvest":true,"first_level":true,"first_sale":true,"first_upgrade":true,"tutorial_complete":true},"herbs":[23,30,0,0,0],"levels":{"brewer":1,"cashier":1,"cauldron":3,"counter":1,"garden":4,"gardener":1,"shelf":1},"login":{"claimed":false,"last":"2026-10-27","reward":160,"streak":1},"muted":false,"offline_notice":{},"owned":{"brew":true,"brewer":true,"capacity":true,"cashier":true,"gardener":true,"grow":true,"recipe":true,"renovation":true,"service":true},"plots":[{"crop":1,"progress":0.3},{"crop":1,"progress":4.51977401129944}],"pot":1,"prestige":{"branches":0,"run_earned":1048,"stars":0,"talents":{}},"queue":0,"ready":false,"recipe":1,"service":0.0,"serving":false,"stats":{"brewed":84,"earned":1048,"harvested":138,"levels":5,"sold":84},"stock":[0,1,0,0,0,0,0,0],"timestamp":1793102506.2603,"tutorial":8,"version":4,"visitor":{},"visitor_timer":15.9}

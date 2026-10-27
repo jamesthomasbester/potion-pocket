@@ -44,13 +44,30 @@ The shop room, its furniture and customer paths sit on one oblique grid (`U`/`V`
 ## Tiered asset suite (0.4.0)
 Thirty new transparent variants cover furniture, beds, crop plants, decorative foliage and both potion recipes. Levels 1, 3 and 7 visibly change the corresponding art. Six floor and wall finishes are previewable under **gear → Décor • floors & walls**; upgrades unlock new looks, and your selection is saved. See `docs/ASSET_CATALOG.md`, `docs/evidence/tiered/asset-catalog.png` and the source sheets in `art/source/tier-atlases/`.
 
-Regenerate and validate with `python3 tools/extract_tiers.py`, `python3 tools/make_decor.py`, `python3 tools/check_assets.py`, and `godot --path . -s res://tools/art_preview.gd -- --ui-test`.
+Regenerate and validate with `python3 tools/extract_tiers.py`, `python3 tools/check_assets.py`, and `godot --path . -s res://tools/art_preview.gd -- --ui-test`.
 
 ## Directional character animations (0.5.0)
 All seven characters now use 4-direction, 4-action transparent atlases. Travel uses actual facing and alternating stride frames; pickups and active station work have their own poses. Customers keep their identity from queue through departure. See `docs/CHARACTER_ANIMATIONS.md`, the `character-directions.png` / `character-actions.png` review sheets, and the Pixel 6 `pixel6-animations.mp4` capture in `docs/evidence/tiered/`.
 
 ## Team levels, talents and branch themes (0.6.0)
 Pip, Momo and Sol level 1–100 in **Team** once hired: Pip speeds growth, Momo speeds brewing and Sol adds tips to every sale, each doubling at levels 10/25/50/75/100. Moon Stars now buy six permanent talents in **Improve**; spending a star never lowers its price bonus. Each branch has its own outdoor look (seaside, snow, night market lanterns, sunflowers, starfall). Preview every branch and both panels with `godot --path . -s res://tools/branch_preview.gd -- --ui-test`, which writes `docs/evidence/branches/`. Details: `docs/ECONOMY.md`.
+
+## Shop scene (0.7.0)
+`game/main.tscn` is the authored shop scene and the main scene. **World** holds the room backdrop, the floor decals (rug, doormat) and the furniture in a y-sorted **Props** node. Each piece stands on its foot, so the team and customers layer correctly in front of and behind it. **HUD** is a CanvasLayer with:
+- the top bar: coins, the shop's name, daily goals and settings;
+- the goal banner;
+- the **Stage**, the gap the room is fitted into;
+- the station card;
+- the bottom navigation: Shop, Garden, Team, Recipes and Upgrades.
+
+`game/shop_view.gd` drives the room:
+- it swaps each piece between its t1/t2/t3 art;
+- it places Momo, Sol, the owner, the queue (up to three customers, with a "+N" by the door) and special visitors on the measured floor;
+- it draws badges and effects.
+
+Furniture tiers: stations follow their level. The lectern, books and bookcase follow recipes unlocked, and the workbench follows Momo's level. The rug, doormat and plant follow the Décor choice. Tap the cauldron, potion shelf or counter to select it, the lectern to open the Recipe Book, and a special visitor to serve them. `game/actor.gd` draws a character from the existing pose sheets.
+
+The new art's sources are in `art/v2/`. `art/` is excluded from export, so `python3 tools/import_v2_art.py` copies the chosen cut-outs into `game/art/shop/` and `game/art/ui/`. It halves the furniture size, and the picks are listed at the top of the script. The garden tab still uses the drawn garden in `game/room.gd`.
 
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.
