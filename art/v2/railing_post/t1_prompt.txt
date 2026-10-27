@@ -1,0 +1,3 @@
+Single isometric game asset icon of a plain simple square wooden fence post with a flat top. Hand-painted stylized mobile game art, cel shaded, thick dark outlines, soft highlights, vibrant saturated colors, cozy fantasy shop furniture, centered on plain flat light grey background
+neg='' cfg=1.0 init=out/arcane_library/railing_post/seed4170582141.png denoise=0.85
+seed=2986031662 n=2 lora=0.0 steps=8 size=1024x1024

@@ -1,0 +1,169 @@
+[gd_scene format=3 uid="uid://ca0jsm823u4ac"]
+
+[ext_resource type="Script" uid="uid://babaeec6qf27q" path="res://game/shop_layout.tscn.gd" id="1_dy5cq"]
+[ext_resource type="Texture2D" uid="uid://c7yc2s8q4gmqw" path="res://art/v2/seed1604686692_cut.png" id="1_hfhrm"]
+[ext_resource type="Texture2D" uid="uid://2nf7o42yffsy" path="res://builds/seed2937312266.png" id="1_iid63"]
+[ext_resource type="Texture2D" uid="uid://drhkpw7qc7wg7" path="res://art/v2/moon_rug/t1_seed2600604092_cut.png" id="2_fie33"]
+[ext_resource type="Texture2D" uid="uid://bokqvdlbinnge" path="res://art/v2/cauldron/t1_seed2619076981_cut.png" id="3_iid63"]
+[ext_resource type="Texture2D" uid="uid://ct500p5s2dtih" path="res://art/v2/book_stack/t1_seed2304387617_cut.png" id="4_bicfs"]
+[ext_resource type="Texture2D" uid="uid://cv640ok6xqboo" path="res://art/v2/shop_counter_sheet/seed669728475_cut1.png" id="5_dy5cq"]
+[ext_resource type="Texture2D" uid="uid://nj78h2scx36l" path="res://art/v2/workbench/t1_seed3667237731_cut.png" id="6_c8def"]
+[ext_resource type="Texture2D" uid="uid://cugwva2ag55xx" path="res://art/v2/bookcase_amber/t1_seed2376558755_cut.png" id="7_lgpy4"]
+[ext_resource type="Texture2D" uid="uid://cm4bcih7swj36" path="res://art/v2/bookcase_purple/t1_seed2938632042_cut.png" id="8_wcawp"]
+[ext_resource type="Texture2D" uid="uid://iinddo5qdjoj" path="res://art/v2/door_mat/t1_seed221783967_cut.png" id="9_ulucj"]
+[ext_resource type="Texture2D" uid="uid://d2asb2jfjtkiy" path="res://art/v2/potted_plant/t1_seed1245336311_cut.png" id="10_22nxa"]
+[ext_resource type="Texture2D" uid="uid://cv666umwym04h" path="res://art/v2/lectern_rot/t1/seed1571052957_cut.png" id="12_iid63"]
+[ext_resource type="Shader" uid="uid://iwc7qrb6gg4h" path="res://game/lectern.gdshader" id="13_c8def"]
+[ext_resource type="Texture2D" uid="uid://tmg6b4uq410n" path="res://art/v2/out.png" id="15_22nxa"]
+[ext_resource type="Texture2D" uid="uid://b1sijffhsq48s" path="res://art/v2/gear-out.png" id="16_bjxrm"]
+[ext_resource type="Texture2D" uid="uid://uaq6r3qqb2yo" path="res://art/v2/shop-out.png" id="17_867qn"]
+[ext_resource type="Texture2D" uid="uid://dyqesnr6e0r5m" path="res://art/v2/gardeb-out.png" id="18_a0swl"]
+[ext_resource type="Texture2D" uid="uid://dtclhw3qefbsu" path="res://art/v2/potion-out.png" id="19_pmm8n"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_uwp83"]
+shader = ExtResource("13_c8def")
+
+[node name="ShopLayout" type="Node2D" unique_id=1327185308]
+script = ExtResource("1_dy5cq")
+
+[node name="Sprites" type="Node2D" parent="." unique_id=1513804512]
+
+[node name="ColorRect" type="ColorRect" parent="Sprites" unique_id=1297084273]
+offset_right = 550.0
+offset_bottom = 950.0
+color = Color(0.34509805, 0, 0.6, 1)
+
+[node name="backdrop2" type="Sprite2D" parent="Sprites" unique_id=2087183249]
+position = Vector2(276.39996, 483.19995)
+scale = Vector2(0.71538454, 0.8154604)
+texture = ExtResource("1_iid63")
+
+[node name="backdrop" type="Sprite2D" parent="Sprites" unique_id=1257587755]
+position = Vector2(268, 350)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("1_hfhrm")
+
+[node name="rug" type="Sprite2D" parent="Sprites/backdrop" unique_id=1010635834]
+position = Vector2(-51.25, 189.99998)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_fie33")
+
+[node name="door_mat" type="Sprite2D" parent="Sprites/backdrop" unique_id=433491392]
+position = Vector2(4.9999995, 344.99994)
+scale = Vector2(0.19999999, 0.19999999)
+texture = ExtResource("9_ulucj")
+
+[node name="plant_pot" type="Sprite2D" parent="Sprites/backdrop" unique_id=119291721]
+position = Vector2(-3.749992, 241.24997)
+scale = Vector2(0.099999994, 0.099999994)
+texture = ExtResource("10_22nxa")
+
+[node name="cauldron" type="Sprite2D" parent="Sprites/backdrop" unique_id=1056756910]
+position = Vector2(2.4999924, 27.499985)
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("3_iid63")
+
+[node name="books" type="Sprite2D" parent="Sprites/backdrop" unique_id=1915064287]
+position = Vector2(212.49997, 146.24998)
+scale = Vector2(0.09999999, 0.09999999)
+texture = ExtResource("4_bicfs")
+
+[node name="register" type="Sprite2D" parent="Sprites/backdrop" unique_id=1813089781]
+position = Vector2(96.250015, 245.00003)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("5_dy5cq")
+
+[node name="workbench" type="Sprite2D" parent="Sprites/backdrop" unique_id=721704496]
+position = Vector2(-133.75, 85)
+scale = Vector2(0.23, 0.23)
+texture = ExtResource("6_c8def")
+
+[node name="bookcase-amber" type="Sprite2D" parent="Sprites/backdrop" unique_id=1628275345]
+position = Vector2(-287.50003, 100.00001)
+rotation = -0.017453292
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("7_lgpy4")
+
+[node name="bookcase-purple" type="Sprite2D" parent="Sprites/backdrop" unique_id=41370226]
+position = Vector2(291.24997, 95.00001)
+rotation = 0.017453292
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("8_wcawp")
+
+[node name="Lectern" type="Sprite2D" parent="Sprites/backdrop" unique_id=797515535]
+material = SubResource("ShaderMaterial_uwp83")
+position = Vector2(122.5, 88.75)
+scale = Vector2(0.15, 0.15)
+texture = ExtResource("12_iid63")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2061445658]
+
+[node name="Root" type="Control" parent="HUD" unique_id=929076836]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 541.0
+offset_bottom = 959.0
+
+[node name="TopBar" type="MarginContainer" parent="HUD/Root" unique_id=645773493]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_right = 250.0
+offset_bottom = 50.0
+grow_horizontal = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HUD/Root/TopBar" unique_id=684687906]
+layout_mode = 2
+
+[node name="CoinIcon" type="TextureRect" parent="HUD/Root/TopBar/HBoxContainer" unique_id=2128816418]
+layout_mode = 2
+texture = ExtResource("15_22nxa")
+expand_mode = 2
+
+[node name="CoinLabel" type="Label" parent="HUD/Root/TopBar/HBoxContainer" unique_id=713541833]
+layout_mode = 2
+text = "0"
+
+[node name="Spacer" type="Control" parent="HUD/Root/TopBar/HBoxContainer" unique_id=463973404]
+layout_mode = 2
+
+[node name="SettingsButton" type="Button" parent="HUD/Root/TopBar/HBoxContainer" unique_id=1492825819]
+layout_mode = 2
+icon = ExtResource("16_bjxrm")
+expand_icon = true
+
+[node name="BottomBar" type="MarginContainer" parent="HUD/Root" unique_id=445200716]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = -150.0
+offset_right = 250.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HUD/Root/BottomBar" unique_id=1881942482]
+layout_mode = 2
+
+[node name="ShopButton" type="Button" parent="HUD/Root/BottomBar/HBoxContainer" unique_id=779616359]
+custom_minimum_size = Vector2(150, 100)
+layout_mode = 2
+icon = ExtResource("17_867qn")
+expand_icon = true
+
+[node name="GardenButton" type="Button" parent="HUD/Root/BottomBar/HBoxContainer" unique_id=1703503835]
+custom_minimum_size = Vector2(150, 100)
+layout_mode = 2
+icon = ExtResource("18_a0swl")
+expand_icon = true
+
+[node name="BrewButton" type="Button" parent="HUD/Root/BottomBar/HBoxContainer" unique_id=606594430]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+icon = ExtResource("19_pmm8n")
+expand_icon = true

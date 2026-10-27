@@ -1,0 +1,3 @@
+Single isometric game asset icon of a wooden lectern book stand holding an open old spellbook with herb drawings, a small purple potion bottle beside its base, turned to face the right. Hand-painted stylized mobile game art, cel shaded, thick dark outlines, soft highlights, vibrant saturated colors, cozy fantasy shop furniture, lit from the upper left, centered on plain flat light grey background
+neg='' cfg=1.0 init=out/lectern_rot/t2_mirror.png denoise=0.5
+seed=1029225267 n=2 lora=0.0 steps=8 size=1024x1024

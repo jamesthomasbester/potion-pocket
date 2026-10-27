@@ -1,0 +1,3 @@
+Single isometric game asset icon of an ornate gold wall sconce lamp with purple gem and filigree, a glowing magical purple-white flame inside a crystal glass shade. Hand-painted stylized mobile game art, cel shaded, thick dark outlines, soft highlights, vibrant saturated colors, cozy fantasy shop furniture, centered on plain flat light grey background
+neg='' cfg=1.0 init=out/arcane_library/wall_sconce/seed987513930.png denoise=0.88
+seed=877832048 n=2 lora=0.0 steps=8 size=1024x1024

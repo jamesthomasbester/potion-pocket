@@ -1,0 +1,3 @@
+Single isometric game asset icon of a luxurious purple and gold rug with an intricate gold border, a glowing gold crescent moon and stars in the centre and gold tassels, lying flat on the floor. Hand-painted stylized mobile game art, cel shaded, thick dark outlines, soft highlights, vibrant saturated colors, cozy fantasy shop furniture, centered on plain flat light grey background
+neg='' cfg=1.0 init=out/arcane_library/moon_rug/seed2399998875.png denoise=0.88
+seed=1263269516 n=2 lora=0.0 steps=8 size=1024x1024
