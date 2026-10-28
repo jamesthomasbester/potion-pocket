@@ -1,0 +1,3 @@
+Single isometric game asset icon of a long rectangular raised wooden garden planter bed, twice as long as it is wide, running diagonally at an isometric angle, chunky warm wooden plank sides, dark brown soil with six large bushy bright green peppermint plants in a neat 2 by 3 grid. Hand-painted stylized mobile game art, cel shaded, thick dark outlines, soft highlights, vibrant saturated colors, cozy fantasy herb garden, centered on plain flat light grey background
+neg='' cfg=1.0 init=None denoise=1.0
+seed=795052649 n=2 lora=0.0 steps=8 size=1024x1024
