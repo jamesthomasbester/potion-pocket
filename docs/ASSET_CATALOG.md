@@ -21,6 +21,6 @@ Floor and wall finishes are independent, mixable choices. Open **gear → Décor
 
 The next unlocked look applies automatically until the player selects a finish. A manual choice persists across upgrades and save/load. Decoration never alters prices or timers. Old version 1 and 2 saves migrate to the new decoration fields; an existing renovation keeps its lavender look.
 
-The SVG files in `game/art/decor/` are menu swatches for the same palettes and motifs that the renderer draws in perspective. Source generation: `python3 tools/make_decor.py`. PNG extraction: `python3 tools/extract_tiers.py`; alpha and resource check: `python3 tools/check_assets.py`. Individual game sprites are in `game/art/` and their source sheets are preserved for future edits.
+The shop room and its furniture now come from `art/v2/` (see the README, Shop scene); the Décor menu picks the shop's rug and planter tiers. PNG extraction: `python3 tools/extract_tiers.py`; alpha and resource check: `python3 tools/check_assets.py`. Individual game sprites are in `game/art/` and their source sheets are preserved for future edits.
 
 Browse the [complete catalog](evidence/tiered/asset-catalog.png) and [shop level 1](evidence/tiered/shop-tier-1.png), [shop level 3](evidence/tiered/shop-tier-2.png), [shop level 7](evidence/tiered/shop-tier-3.png) previews. The preview script seeds the tiers and full-grown beds only for screenshots; actual gameplay earns levels and waits for crops normally.

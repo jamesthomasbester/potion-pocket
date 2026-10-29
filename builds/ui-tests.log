@@ -28,6 +28,12 @@ PASS Recipe Book brew button selects Dreamdrop
 PASS recipes past the next unlock stay hidden
 PASS switching recipe replants beds and recovers from a full old herb bin
 PASS tapping the locked plot buys it
+PASS a planter shows its bed's growth, from bare soil to its grown crop
+PASS bought beds show their planter and the next plot shows a padlock
+PASS garden props wait for their level
+PASS Lv. 7 brings the bench and bird bath
+PASS tapping a bed selects the garden station
+PASS Pip works the first bed once hired
 PASS background notification saved recoverable state
 PASS background save retains inventory and tutorial flags
 PASS reset dialog does not reset before confirmation
@@ -39,26 +45,37 @@ PASS context card levels the cauldron for its listed cost
 PASS level up changes actual brew duration
 PASS card shows the new level
 PASS tapping the counter selects its station
+PASS tapping the lectern opens the Grimoire's research
 PASS coin header displays integer balance
-PASS scene stays clipped inside responsive scene area
+PASS the stage frames the whole room above the card
 PASS decor menu shows locked and selected floor choices
 PASS renovation changes visible architecture selection
 PASS touch choice switches only the floor
-PASS master furniture and plants are loaded into the playable scene
+PASS cauldron art moves to its third tier at Lv. 7
+PASS rug follows the chosen décor
 PASS 16 aligned poses loaded: owner
 PASS 16 aligned poses loaded: brewer
 PASS 16 aligned poses loaded: cashier
-PASS 16 aligned poses loaded: gardener
 PASS 16 aligned poses loaded: customer0
 PASS 16 aligned poses loaded: customer1
 PASS 16 aligned poses loaded: departing
 PASS all four travel directions select distinct facing columns
 PASS idle, stride, pickup and work select real pose rows
 PASS walk and work progress to their second keyframe
-PASS customer pauses to pick up a purchase
-PASS customer resumes with direction-aware walking
+PASS queued customers appear in the room, depth-sorted with furniture
+PASS the first customer walks in to the counter
+PASS a served customer pauses with their purchase, then leaves
+PASS departed customers are removed once outside
+PASS tapping a special visitor serves them
+PASS served visitor leaves the room
 PASS an unhired helper's training card is locked
 PASS Team card trains Pip for the listed cost
-PASS Improve card spends a Moon Star on a talent
-PASS second branch draws the seaside theme
-UI RESULT 46 checks / 0 failures
+PASS the Grimoire opens on Herbology with the first ready page selected
+PASS the Study button starts the selected page at the lectern
+PASS the page is learned once its study runs out
+PASS tapping a page in the tree selects it
+PASS the Celestial chapter holds the Moon Star talents
+PASS Celestial pages spend Moon Stars and are learned at once
+PASS talents no longer appear in Improve
+PASS second branch gives the garden its seaside look
+UI RESULT 63 checks / 0 failures

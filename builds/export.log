@@ -1,5 +1,6 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
+Could not find version of build tools that matches Target SDK, using 35.0.0
 [   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
 [   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
 [  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
@@ -9,46 +10,100 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
 [92m[ DONE ][39m [1mfirst_scan_filesystem[22m
 [0m
-[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (4 steps)[39m[0m
-[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
-[  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
-[  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
-[  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
-[92m[ DONE ][39m [1mupdate_scripts_classes[22m
-[0m
-[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (7 steps)[39m[0m
-[   0% ] [90m[1m_update_scan_actions[22m | automated-shop.png[39m[0m
-[  12% ] [90m[1m_update_scan_actions[22m | five-minute-shop.png[39m[0m
-[  25% ] [90m[1m_update_scan_actions[22m | garden.png[39m[0m
-[  37% ] [90m[1m_update_scan_actions[22m | layout-960.png[39m[0m
-[  50% ] [90m[1m_update_scan_actions[22m | layout-971.png[39m[0m
-[  62% ] [90m[1m_update_scan_actions[22m | renovated-shop.png[39m[0m
-[  75% ] [90m[1m_update_scan_actions[22m | starting-shop.png[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (27 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | branch-0-garden.png[39m[0m
+[   3% ] [90m[1m_update_scan_actions[22m | branch-0-shop.png[39m[0m
+[   7% ] [90m[1m_update_scan_actions[22m | branch-1-garden.png[39m[0m
+[  10% ] [90m[1m_update_scan_actions[22m | branch-1-shop.png[39m[0m
+[  14% ] [90m[1m_update_scan_actions[22m | branch-2-garden.png[39m[0m
+[  17% ] [90m[1m_update_scan_actions[22m | branch-2-shop.png[39m[0m
+[  21% ] [90m[1m_update_scan_actions[22m | branch-3-garden.png[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | branch-3-shop.png[39m[0m
+[  28% ] [90m[1m_update_scan_actions[22m | branch-4-garden.png[39m[0m
+[  32% ] [90m[1m_update_scan_actions[22m | branch-4-shop.png[39m[0m
+[  35% ] [90m[1m_update_scan_actions[22m | branch-5-garden.png[39m[0m
+[  39% ] [90m[1m_update_scan_actions[22m | branch-5-shop.png[39m[0m
+[  42% ] [90m[1m_update_scan_actions[22m | improve-talents.png[39m[0m
+[  46% ] [90m[1m_update_scan_actions[22m | team-training.png[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | automated-shop.png[39m[0m
+[  53% ] [90m[1m_update_scan_actions[22m | five-minute-shop.png[39m[0m
+[  57% ] [90m[1m_update_scan_actions[22m | garden-tier-1.png[39m[0m
+[  60% ] [90m[1m_update_scan_actions[22m | garden-tier-2.png[39m[0m
+[  64% ] [90m[1m_update_scan_actions[22m | garden-tier-3.png[39m[0m
+[  67% ] [90m[1m_update_scan_actions[22m | garden.png[39m[0m
+[  71% ] [90m[1m_update_scan_actions[22m | layout-960.png[39m[0m
+[  75% ] [90m[1m_update_scan_actions[22m | layout-1200.png[39m[0m
+[  78% ] [90m[1m_update_scan_actions[22m | renovated-shop.png[39m[0m
+[  82% ] [90m[1m_update_scan_actions[22m | shop-tier-1.png[39m[0m
+[  85% ] [90m[1m_update_scan_actions[22m | shop-tier-2.png[39m[0m
+[  89% ] [90m[1m_update_scan_actions[22m | shop-tier-3.png[39m[0m
+[  92% ] [90m[1m_update_scan_actions[22m | starting-shop.png[39m[0m
 [92m[ DONE ][39m [1m_update_scan_actions[22m
 [0m
-[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (27 steps)[39m[0m
 [   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  12% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   3% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   7% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  10% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  14% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  17% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  21% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  25% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  37% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  28% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  32% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  35% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  39% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  42% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  46% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  50% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
-[  62% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  53% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  57% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  60% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  64% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  67% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  71% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [  75% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  78% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  82% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  85% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  89% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  92% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
 [   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
-[   0% ] [90m[1mreimport[22m | automated-shop.png[39m[0m
-[  12% ] [90m[1mreimport[22m | five-minute-shop.png[39m[0m
+[   0% ] [90m[1mreimport[22m | starting-shop.png[39m[0m
+[   3% ] [90m[1mreimport[22m | shop-tier-3.png[39m[0m
+[   7% ] [90m[1mreimport[22m | shop-tier-2.png[39m[0m
+[  10% ] [90m[1mreimport[22m | shop-tier-1.png[39m[0m
+[  14% ] [90m[1mreimport[22m | renovated-shop.png[39m[0m
+[  17% ] [90m[1mreimport[22m | layout-1200.png[39m[0m
+[  21% ] [90m[1mreimport[22m | layout-960.png[39m[0m
 [  25% ] [90m[1mreimport[22m | garden.png[39m[0m
-[  37% ] [90m[1mreimport[22m | layout-960.png[39m[0m
-[  50% ] [90m[1mreimport[22m | layout-971.png[39m[0m
-[  62% ] [90m[1mreimport[22m | renovated-shop.png[39m[0m
-[  75% ] [90m[1mreimport[22m | starting-shop.png[39m[0m
-[  87% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+[  28% ] [90m[1mreimport[22m | garden-tier-3.png[39m[0m
+[  32% ] [90m[1mreimport[22m | garden-tier-2.png[39m[0m
+[  35% ] [90m[1mreimport[22m | garden-tier-1.png[39m[0m
+[  39% ] [90m[1mreimport[22m | five-minute-shop.png[39m[0m
+[  42% ] [90m[1mreimport[22m | automated-shop.png[39m[0m
+[  46% ] [90m[1mreimport[22m | team-training.png[39m[0m
+[  50% ] [90m[1mreimport[22m | improve-talents.png[39m[0m
+[  53% ] [90m[1mreimport[22m | branch-5-shop.png[39m[0m
+[  57% ] [90m[1mreimport[22m | branch-5-garden.png[39m[0m
+[  60% ] [90m[1mreimport[22m | branch-4-shop.png[39m[0m
+[  64% ] [90m[1mreimport[22m | branch-4-garden.png[39m[0m
+[  67% ] [90m[1mreimport[22m | branch-3-shop.png[39m[0m
+[  71% ] [90m[1mreimport[22m | branch-3-garden.png[39m[0m
+[  75% ] [90m[1mreimport[22m | branch-2-shop.png[39m[0m
+[  78% ] [90m[1mreimport[22m | branch-2-garden.png[39m[0m
+[  82% ] [90m[1mreimport[22m | branch-1-shop.png[39m[0m
+[  85% ] [90m[1mreimport[22m | branch-1-garden.png[39m[0m
+[  89% ] [90m[1mreimport[22m | branch-0-shop.png[39m[0m
+[  92% ] [90m[1mreimport[22m | branch-0-garden.png[39m[0m
+[  96% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
 [92m[ DONE ][39m [1mreimport[22m
 [0m
-[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (27 steps)[39m[0m
 [   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
 [92m[ DONE ][39m [1mreimport[22m
 [0m
+Could not find version of build tools that matches Target SDK, using 35.0.0
 [   0% ] [90m[1mexport[22m | Started Exporting for Android (105 steps)[39m[0m
 0 param: --xr_mode_regular
 1 param: --xr-mode
@@ -158,10 +213,13 @@ ADDING: kotlin/reflect/reflect.kotlin_builtins
 [   0% ] [90m[1mexport[22m | Adding files...[39m[0m
 [  97% ] [90m[1mexport[22m | Aligning APK...[39m[0m
 [  98% ] [90m[1mexport[22m | Signing debug APK...[39m[0m
+Could not find version of build tools that matches Target SDK, using 35.0.0
 Signing binary using: 
-/media/james/dev-drive/strata-dig-deeper/.tools/android-sdk/build-tools/36.1.0/apksigner sign --verbose --ks <REDACTED> --ks-pass pass:<REDACTED> --ks-key-alias <REDACTED> /media/james/dev-drive/potion-pocket/builds/little-lux-debug.apk
+/root/Android/Sdk/build-tools/35.0.0/apksigner sign --verbose --ks <REDACTED> --ks-pass pass:<REDACTED> --ks-key-alias <REDACTED> /home/user/potion-pocket/builds/little-lux-debug.apk
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=37097 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
 Signed
 
 [  99% ] [90m[1mexport[22m | Verifying APK...[39m[0m
 [92m[ DONE ][39m [1mexport[22m
 [0m
+Android Debug Bridge version 1.0.41

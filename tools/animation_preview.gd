@@ -21,34 +21,27 @@ func capture():
 	for plot in app.model.s.plots:
 		plot.progress=app.model.grow_time(int(plot.crop))*.6
 	app.settings_box.hide()
-	app.room.custom_minimum_size.y=340
 	app.switch_tab("shop")
 	app.refresh()
-	app.room._process(.4)
-	for i in range(app.room.customers.size()):
-		app.room.customers[i].g=app.room.QUEUE[i]
-		app.room.customers[i].path=[]
-		app.room.customers[i].moving=false
-		app.room.customers[i].dir=2
-	app.room.clock=0
-	app.room.queue_redraw()
+	# Let the queue walk in, then freeze everyone mid-pose.
+	for i in range(60): app.shop._process(.1)
+	app.shop.clock=0
 	await process_frame
 	await app.screenshot("animation-shop-work")
-	app.room.actor_timers["brewer"]=.7
-	app.room.actor_timers["owner"]=.7
-	app.room.customers[0].hold=.6
-	app.room.clock=.2
-	app.room.queue_redraw()
+	app.shop.actor_timers["brewer"]=.7
+	app.shop.actor_timers["owner"]=.7
+	app.shop.customers[0].hold=.6
+	app.shop._process(.05)
 	await process_frame
 	await app.screenshot("animation-shop-pickup")
 	app.switch_tab("garden")
-	app.room.actor_timers["gardener"]=0
-	app.room.clock=0
-	app.room.queue_redraw()
+	app.garden.actor_timers["gardener"]=0
+	app.garden.clock=0
+	app.garden.queue_redraw()
 	await process_frame
 	await app.screenshot("animation-garden-work")
-	app.room.actor_timers["gardener"]=.7
-	app.room.queue_redraw()
+	app.garden.actor_timers["gardener"]=.7
+	app.garden.queue_redraw()
 	await process_frame
 	await app.screenshot("animation-garden-pickup")
 	print("ANIMATION PREVIEW four action scenes captured")

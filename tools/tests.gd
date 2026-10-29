@@ -414,6 +414,112 @@ func _initialize():
 	older=JSON.parse_string(JSON.stringify(older))
 	var migrated=E.new()
 	check(migrated.valid(migrated.migrate(older)) and migrated.migrate(older).prestige.talents.is_empty() and int(migrated.migrate(older).levels.gardener)==1,"save from before talents and helper levels loads")
+	# The Grimoire: Lore, studies and permanent pages.
+	m=E.new()
+	m.s.herbs=H([5])
+	m.brew()
+	m.simulate(3)
+	m.stock()
+	check(m.s.research.lore==21,"a first Energy Brew earns 1 Lore per bottle plus 20 for the recipe's first brew")
+	m.s.herbs=H([5])
+	m.brew()
+	m.simulate(3)
+	m.stock()
+	check(m.s.research.lore==22,"later brews of the same recipe earn only the bottle's Lore")
+	m.s.research.lore=0
+	check(not m.start_study("rich_compost"),"studying needs Lore")
+	m.s.research.lore=100
+	check(not m.start_study("seed_library") and m.page_state("seed_library")=="locked","tier two stays locked until tier one is studied")
+	check(m.start_study("rich_compost") and m.s.research.lore==90 and m.page_state("rich_compost")=="studying","a study costs its Lore and starts at the lectern")
+	check(not m.start_study("deep_bins"),"one desk means one study at a time")
+	m.simulate(29)
+	check(m.rank("rich_compost")==0,"a study isn't learned before its time")
+	m.simulate(1.1)
+	check(m.rank("rich_compost")==1 and m.s.research.active.is_empty() and m.finished_studies.has("Rich Compost"),"the page is learned when its study runs out")
+	check(is_equal_approx(m.bonus("double_harvest"),0.1),"a learned page adds its effect")
+	check(m.page_cost("rich_compost")==25 and is_equal_approx(m.page_seconds("rich_compost"),60.0),"each rank costs 2.5x the Lore and takes twice as long")
+	m.s.research.ranks.deep_bins=1
+	check(m.page_state("seed_library")=="ready","two tier-one ranks open tier two")
+	check(m.herb_capacity()==24+8,"Deep Bins adds herb bin space")
+	check(m.page_state("moonlit_garden")=="locked","the keystone needs tier two first")
+	m.s.research.ranks.seed_library=1
+	m.s.research.ranks.gentle_rain=1
+	check(m.page_state("moonlit_garden")=="ready","every tier-two page opens the keystone when the tier offers fewer than three ranks")
+	check(m.harvest_amount(0)==3,"Gentle Rain adds a herb to every harvest")
+	var grow=m.grow_time(0)
+	m.s.research.ranks.moonlit_garden=1
+	m.away=true
+	check(is_equal_approx(m.grow_time(0),grow/2.0),"Moonlit Garden grows beds twice as fast while away")
+	m.away=false
+	check(is_equal_approx(m.grow_time(0),grow),"and at the usual speed while you play")
+	m.s.research.ranks.quick_study=3
+	check(is_equal_approx(m.page_seconds("deep_bins"),240.0/1.3),"Quick Study shortens studies")
+	m.s.research.ranks.second_desk=1
+	m.s.research.lore=10000
+	check(m.start_study("deep_bins") and m.start_study("measured_pour"),"Second Desk studies two pages at once")
+	check(m.valid(m.s),"a save with Lore, ranks and active studies validates")
+	m.s.research.ranks.shelf_charms=2
+	m.s.research.ranks.fair_prices=2
+	m.s.research.ranks.regulars=1
+	m.s.research.ranks.shop_bell=1
+	m.s.research.ranks.patient_patrons=1
+	m.s.research.ranks.royal_warrant=1
+	m.s.research.ranks.night_notes=1
+	m.s.research.ranks.early_branch=1
+	check(m.capacity()==6+4,"Shelf Charms adds shelf space")
+	check(m.price(0)==int(round(8*1.1)),"Fair Prices raises potion prices")
+	check(m.queue_capacity()==4,"Regulars adds a queue spot")
+	check(is_equal_approx(m.visitor_every(),45.0/1.2),"Shop Bell brings special visitors sooner")
+	check(is_equal_approx(m.visitor_wait("request"),40.0) and is_equal_approx(m.visitor_wait("vip"),80.0) and m.pay_multiple("vip")==15,"Patient Patrons and Royal Warrant keep visitors longer, and VIPs pay x15")
+	check(is_equal_approx(m.offline_cap(),7200.0+3600.0),"Night Notes extends offline work")
+	check(m.prestige_level()==20,"Early Branch opens branches at Lv. 20")
+	m.s.research.ranks.twin_brew=1
+	m.s.research.active=[]
+	m.s.stock=P([0])
+	m.s.herbs=H([5])
+	m.brew()
+	m.simulate(3)
+	m.stock()
+	check(m.s.stock[0]>=2,"Twin Brew makes two bottles a brew")
+	m.s.research.ranks.recipe_memory=1
+	m.s.research.ranks.star_reading=2
+	m.s.levels.counter=20
+	m.s.prestige.run_earned=200000
+	check(m.pending_stars()==int(floor(2*1.2)),"Star Reading adds Moon Stars from a branch")
+	var lore_before=m.s.research.lore
+	check(m.open_branch(),"a Lv. 20 station opens a branch with Early Branch")
+	check(m.rank("twin_brew")==1 and m.s.research.lore==lore_before,"research and Lore carry over to a new branch")
+	check(m.recipe_unlocked(1) and m.recipe_unlocked(2) and not m.recipe_unlocked(3),"Recipe Memory keeps the first two recipes")
+	check(m.s.plots.size()==3,"Seed Library opens the branch with a third bed")
+	check(m.s.brewed_kinds.is_empty(),"first-brew Lore can be earned again in the new branch")
+	check(m.valid(m.s),"post-branch save with research validates")
+	var bad_save=m.s.duplicate(true)
+	bad_save.research.ranks["unknown_page"]=1
+	check(not m.valid(bad_save),"an unknown research page is rejected")
+	bad_save=m.s.duplicate(true)
+	bad_save.research.active=[{"id":"twin_brew","ends":10.0}]
+	check(not m.valid(bad_save),"studying a fully learned page is rejected")
+	var no_research=E.new().s.duplicate(true)
+	no_research.erase("research")
+	no_research.erase("brewed_kinds")
+	no_research=JSON.parse_string(JSON.stringify(no_research))
+	var pre_grimoire=E.new()
+	check(pre_grimoire.valid(pre_grimoire.migrate(no_research)),"a save from before the Grimoire loads")
+	# A study finishing during catch-up matches live play tick by tick.
+	var live=E.new()
+	live.s.owned={"gardener":true,"brewer":true,"cashier":true}
+	live.s.flags={"first_harvest":true,"first_brew":true,"first_sale":true}
+	live.s.research.lore=500
+	live.s.research.ranks.rich_compost=1
+	live.start_study("deep_bins")
+	var caught=E.new()
+	caught.s=live.s.duplicate(true)
+	live.begin_ticks()
+	for i in range(3000): live.tick(live.cfg.step)
+	live.end_ticks()
+	live.check_achievements()
+	caught.simulate(300)
+	check(live.rank("deep_bins")==1 and JSON.stringify(live.s)==JSON.stringify(caught.s),"fast-forward finishes studies exactly as tick-by-tick play")
 	# Chunked catch-up matches one-shot catch-up, and pausing midway loses nothing.
 	var whole=E.new()
 	whole.s.owned={"gardener":true,"brewer":true,"cashier":true,"offline_8":true}

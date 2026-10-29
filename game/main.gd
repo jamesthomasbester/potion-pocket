@@ -1,12 +1,12 @@
 extends Control
 const Economy = preload("res://game/economy.gd")
 const Storage = preload("res://game/storage.gd")
-const Room = preload("res://game/room.gd")
 const Sound = preload("res://game/sound.gd")
 const Art = preload("res://game/art_catalog.gd")
+const ResearchTree = preload("res://game/research_tree.gd")
 var model = Economy.new()
 var storage = Storage.new()
-var room
+var garden
 var sound
 var tab := "shop"
 var accumulator := 0.0
@@ -59,7 +59,11 @@ var welcome_away: Label
 var welcome_coins: Label
 var reset_dialog: ConfirmationDialog
 var branch_dialog: ConfirmationDialog
-var root_box: VBoxContainer
+var ui: Control
+var shop
+var stage: Control
+var settings_button: Button
+var nav_buttons: Array = []
 var settings_box: VBoxContainer
 var card_icon: TextureRect
 var card_title: Label
@@ -67,26 +71,39 @@ var card_detail: Label
 var upgrade_button: Button
 var card_milestone: Label
 var selected_station := "cauldron"
-var talent_section: Label
+# The Grimoire's Research tab: chapter shown, page selected and live widgets.
+var grimoire_tabs: HBoxContainer
+var grimoire_chapter := "herb"
+var grimoire_page := ""
+var research_ui := {}
+var grimoire_dot: Panel
 var purchase_labels := {}
 var coin_tex: Texture2D
 var harness := false
 var perf_frames: Array[float] = []
 var perf_clock := 0.0
 var session_events_path := "user://events.jsonl"
-const INK = Color("191b43")
-const CREAM = Color("fff7eb")
-const SAND = Color("f3e6d2")
-const TEAL = Color("65bd85")
-const MINT = Color("72c9a0")
-const LAVENDER = Color("cdb3fa")
-const LILAC = Color("e6d8fc")
+# Palette taken from the shop art: night purple, warm wood, cream and gold.
+const INK = Color("2b1a3d")
+const MUTED = Color("5c4a6e")
+const WOOD = Color("6b3f24")
+const NIGHT = Color("2e1d52")
+const CREAM = Color("fff3df")
+const SAND = Color("f3e2c6")
+const TEAL = Color("5fbf6a")
+const LAVENDER = Color("c9b0f5")
+const LILAC = Color("efe3ff")
+const PURPLE = Color("8a5cd6")
 const GOLD = Color("f2b632")
-const DISABLED = Color("e4e2dc")
-const STATION_ICONS = {"garden":"leaves","cauldron":"cauldron","counter":"counter","shelf":"shelf"}
+const DISABLED = Color("e2dbd2")
+const STATION_ICONS = {"cauldron":"cauldron","counter":"counter","shelf":"potion_shelf"}
+# The part of the shop scene the stage frames: the room from roof to doormat.
+const SHOP_FRAME = Rect2(-6,-4,552,700)
+# The part of the garden yard the stage frames: the cottage door down to the last beds.
+const GARDEN_FRAME = Rect2(20,330,792,790)
 # Purchase cards reuse the scene sprites so the menu reads like the shop.
 const TALENT_ICONS = {"roots":"mint_t3","bubbles":"cauldron_t3","street":"customer0","patrons":"customer1","night":"owner","team":"gardener"}
-const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron","service":"counter","capacity":"shelf","renovation":"flowers","offline_4":"owner","offline_8":"dream_t3"}
+const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron_t2","service":"counter_t2","capacity":"potion_shelf_t2","renovation":"rug_t3","offline_4":"owner","offline_8":"dream_t3"}
 
 func style(c: Color, radius: int = 14) -> StyleBoxFlat:
 	var st := StyleBoxFlat.new()
@@ -106,6 +123,23 @@ func chunky(c: Color, pressed := false, radius := 18) -> StyleBoxFlat:
 	st.content_margin_top=10 if pressed else 6
 	st.anti_aliasing=true
 	return st
+
+# Cream panel with the art's dark wood outline.
+func framed(c: Color, radius := 18, border := 3) -> StyleBoxFlat:
+	var st:=style(c,radius)
+	st.border_color=WOOD
+	st.set_border_width_all(border)
+	st.anti_aliasing=true
+	return st
+
+# Gives a button from the scene the same face as code-built ones.
+func style_button(b: Button, c: Color):
+	b.add_theme_font_size_override("font_size",19)
+	for state in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]: b.add_theme_color_override(state,INK)
+	b.add_theme_color_override("font_disabled_color",Color("8d8698"))
+	b.add_theme_constant_override("icon_max_width",24)
+	paint(b,c)
+	squish(b)
 
 func label(value: String, font_size: int = 20) -> Label:
 	var l:=Label.new()
@@ -202,6 +236,8 @@ func _ready():
 	add_child(sound)
 	sound.set_muted(model.s.muted)
 	build_ui()
+	switch_tab("shop")
+	fit_world.call_deferred()
 	shown_coins=model.s.coins
 	refresh()
 	if storage.locked:
@@ -212,189 +248,132 @@ func _ready():
 	if "--qa" in OS.get_cmdline_user_args(): call_deferred("run_capture")
 
 func build_ui():
-	coin_tex=load("res://game/art/coin.svg")
-	var bg:=ColorRect.new()
-	bg.color=CREAM
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	root_box=VBoxContainer.new()
-	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root_box.add_theme_constant_override("separation",0)
+	coin_tex=load("res://game/art/ui/coin.png")
+	ui=%Root
+	# Respect the phone's notch and gesture bar.
 	if OS.get_name()=="Android":
 		var safe=DisplayServer.get_display_safe_area()
 		var screen=DisplayServer.screen_get_size()
-		var factor=540.0/screen.x
-		root_box.offset_top=maxf(0,safe.position.y*factor)
-		root_box.offset_bottom=-maxf(0,(screen.y-safe.end.y)*factor)
-	add_child(root_box)
-	var top=row()
-	root_box.add_child(margin(top,16,8))
-	header=label("",31)
-	header.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	top.add_child(header)
-	coin_pill=PanelContainer.new()
-	coin_pill.add_theme_stylebox_override("panel",style(SAND,22))
-	top.add_child(coin_pill)
-	var coin_row=row()
-	coin_row.add_theme_constant_override("separation",6)
-	coin_pill.add_child(coin_row)
-	coin_row.add_child(picture(coin_tex,32))
-	coins_label=label("0",27)
-	coins_label.custom_minimum_size.x=46
-	coin_row.add_child(coins_label)
+		var factor=get_viewport_rect().size.x/screen.x
+		%Layout.offset_top=maxf(0,safe.position.y*factor)
+		%Layout.offset_bottom=-maxf(0,(screen.y-safe.end.y)*factor)
+	shop=$World
+	shop.model=model
+	# Top bar: coins, the shop's name, daily goals and settings.
+	header=%Title
+	header.add_theme_font_size_override("font_size",26)
+	header.add_theme_color_override("font_color",CREAM)
+	header.add_theme_color_override("font_outline_color",NIGHT)
+	header.add_theme_constant_override("outline_size",8)
+	coin_pill=%CoinPill
+	coin_pill.add_theme_stylebox_override("panel",framed(CREAM,22,3))
+	coins_label=%CoinLabel
+	coins_label.add_theme_font_size_override("font_size",26)
+	coins_label.add_theme_color_override("font_color",INK)
 	squish(coin_pill)
-	var book=button("",func(): show_book(),52,SAND)
-	book.icon=load("res://game/art/book.svg")
-	book.add_theme_constant_override("icon_max_width",30)
-	book.custom_minimum_size.x=52
-	book.size_flags_horizontal=Control.SIZE_SHRINK_END
-	top.add_child(book)
-	var gear=button("⚙",func():
+	daily_button=%DailyButton
+	settings_button=%SettingsButton
+	for b in [daily_button,settings_button]:
+		paint(b,CREAM,18)
+		b.add_theme_constant_override("icon_max_width",34)
+		squish(b)
+	daily_button.pressed.connect(func(): show_daily())
+	settings_button.pressed.connect(func():
 		settings_box.visible=not settings_box.visible
-		sound.play("tap"),52,SAND)
-	gear.add_theme_font_size_override("font_size",28)
-	gear.custom_minimum_size.x=52
-	gear.size_flags_horizontal=Control.SIZE_SHRINK_END
-	top.add_child(gear)
-	goal_panel=PanelContainer.new()
-	var goal_style:=style(LILAC,18)
-	goal_style.content_margin_left=14
-	goal_style.content_margin_top=8
-	goal_style.content_margin_bottom=10
-	goal_panel.add_theme_stylebox_override("panel",goal_style)
-	root_box.add_child(margin(goal_panel,12,4))
-	squish(goal_panel)
-	var goal_stack=VBoxContainer.new()
-	goal_stack.add_theme_constant_override("separation",6)
-	goal_stack.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	goal_panel.add_child(goal_stack)
-	var goal_row=row()
-	goal_row.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	goal_stack.add_child(goal_row)
-	var star=label("★",26)
-	star.add_theme_color_override("font_color",GOLD)
-	star.add_theme_color_override("font_outline_color",Color("b9822a"))
-	star.add_theme_constant_override("outline_size",3)
-	goal_row.add_child(star)
-	objective=label("",19)
-	objective.custom_minimum_size.y=34
-	objective.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
-	objective.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	objective.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	goal_row.add_child(objective)
-	goal_bar=ProgressBar.new()
-	goal_bar.show_percentage=false
-	goal_bar.custom_minimum_size.y=8
-	goal_bar.add_theme_stylebox_override("background",style(Color("f7f0ff"),4))
-	goal_bar.add_theme_stylebox_override("fill",style(Color("a77cf0"),4))
-	goal_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	goal_stack.add_child(goal_bar)
-	goal_panel.gui_input.connect(func(event):
-		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
-			if "Hire" in model.objective(): show_upgrades(true)
-			elif "Recipe Book" in model.objective(): show_book()
-			elif "Improve" in model.objective() or "Lv." in model.objective() or "glow-up" in model.objective(): show_upgrades(false))
-	room=Room.new()
-	room.custom_minimum_size.y=340
-	room.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	room.mouse_filter=Control.MOUSE_FILTER_STOP
-	room.gui_input.connect(func(event):
-		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
-			var id:String=room.station_at(event.position)
-			if id=="plot": buy_plot()
-			elif id=="visitor": serve_visitor()
-			elif id!="" and id!=selected_station:
-				selected_station=id
-				sound.play("tap")
-				refresh())
-	room.clip_contents=true
-	room.model=model
-	root_box.add_child(room)
-	daily_button=button("",func(): show_daily(),56,CREAM)
-	daily_button.icon=load("res://game/art/scroll.svg")
-	daily_button.add_theme_constant_override("icon_max_width",34)
-	daily_button.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
-	daily_button.custom_minimum_size=Vector2(56,56)
-	daily_button.position=Vector2(10,10)
-	room.add_child(daily_button)
+		sound.play("tap"))
 	daily_dot=Panel.new()
 	var dot:=style(Color("e4574a"),8)
 	dot.border_color=CREAM
 	dot.set_border_width_all(2)
 	daily_dot.add_theme_stylebox_override("panel",dot)
 	daily_dot.size=Vector2(16,16)
-	daily_dot.position=Vector2(44,-2)
+	daily_dot.position=Vector2(42,-2)
 	daily_dot.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	daily_button.add_child(daily_dot)
+	# Goal banner: the current objective and its progress.
+	goal_panel=%GoalPanel
+	var goal_style:=framed(LILAC,18,3)
+	goal_style.content_margin_left=14
+	goal_style.content_margin_top=8
+	goal_style.content_margin_bottom=10
+	goal_panel.add_theme_stylebox_override("panel",goal_style)
+	squish(goal_panel)
+	var star:Label=%Star
+	star.add_theme_font_size_override("font_size",24)
+	star.add_theme_color_override("font_color",GOLD)
+	star.add_theme_color_override("font_outline_color",Color("b9822a"))
+	star.add_theme_constant_override("outline_size",3)
+	objective=%Objective
+	objective.add_theme_font_size_override("font_size",18)
+	objective.add_theme_color_override("font_color",INK)
+	goal_bar=%GoalBar
+	goal_bar.add_theme_stylebox_override("background",style(Color("f7f0ff"),4))
+	goal_bar.add_theme_stylebox_override("fill",style(PURPLE,4))
+	goal_panel.gui_input.connect(func(event):
+		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
+			if "Hire" in model.objective(): show_upgrades(true)
+			elif "Recipe Book" in model.objective(): show_book()
+			elif "Garden" in model.objective(): switch_tab("garden")
+			elif "Improve" in model.objective() or "Lv." in model.objective() or "glow-up" in model.objective(): show_upgrades(false))
+	# The stage is the hole in the HUD where the shop (World) or garden shows.
+	stage=%Stage
+	stage.gui_input.connect(stage_input)
+	stage.resized.connect(fit_world)
+	garden=$Garden
+	garden.model=model
+	# Settings drop down from the gear.
+	var settings_panel:=PanelContainer.new()
+	settings_panel.add_theme_stylebox_override("panel",framed(CREAM,20,3))
+	settings_panel.anchor_left=1.0
+	settings_panel.anchor_right=1.0
+	settings_panel.offset_left=-232
+	settings_panel.offset_right=-12
+	settings_panel.offset_top=78
+	settings_panel.grow_horizontal=Control.GROW_DIRECTION_BEGIN
+	ui.add_child(settings_panel)
 	settings_box=VBoxContainer.new()
 	settings_box.add_theme_constant_override("separation",8)
-	var settings_panel=PanelContainer.new()
-	settings_panel.add_theme_stylebox_override("panel",style(LILAC,0))
-	settings_panel.add_child(margin(settings_box,12,8))
-	root_box.add_child(settings_panel)
-	var management=row()
-	settings_box.add_child(management)
-	management.add_child(button("Team",func(): show_upgrades(true),50,CREAM))
-	management.add_child(button("Improve",func(): show_upgrades(false),50,CREAM))
-	mute=button("Sound",toggle_mute,50,CREAM)
-	management.add_child(mute)
-	management.add_child(button("Reset",func(): reset_dialog.popup_centered(Vector2i(440,180)),50,Color("f4c6b8")))
-	var extras=row()
-	settings_box.add_child(extras)
-	extras.add_child(button("Recipe Book",func(): show_book(),52,LAVENDER))
-	extras.add_child(button("Décor • floors & walls",show_decor,52,LAVENDER))
+	settings_panel.add_child(margin(settings_box,4,4))
+	settings_box.add_child(button("Décor",func():
+		settings_box.hide()
+		show_decor(),52,LAVENDER))
+	mute=button("Sound",toggle_mute,52,SAND)
+	settings_box.add_child(mute)
+	settings_box.add_child(button("Reset progress",func():
+		settings_box.hide()
+		reset_dialog.popup_centered(Vector2i(440,180)),52,Color("f4c6b8")))
 	settings_panel.hide()
-	# Tests and the QA run toggle settings_box directly; keep its panel in step.
-	settings_box.visibility_changed.connect(func():
-		settings_panel.visible=settings_box.visible
-		room.custom_minimum_size.y=160 if settings_box.visible else 340)
+	settings_box.visibility_changed.connect(func(): settings_panel.visible=settings_box.visible)
 	settings_box.visible=false
-	var card=PanelContainer.new()
-	var card_style:=style(CREAM,0)
-	card_style.corner_radius_top_left=26
-	card_style.corner_radius_top_right=26
-	card_style.shadow_color=Color(0.3,0.2,0.45,0.16)
-	card_style.shadow_size=12
-	card_style.shadow_offset=Vector2(0,-4)
+	# Station card: the selected station, its level-up, status and stock.
+	var card:PanelContainer=%Card
+	var card_style:=framed(CREAM,26,3)
+	card_style.corner_radius_bottom_left=0
+	card_style.corner_radius_bottom_right=0
+	card_style.border_width_bottom=0
 	card_style.content_margin_left=16
 	card_style.content_margin_right=16
 	card_style.content_margin_top=14
 	card_style.content_margin_bottom=10
 	card.add_theme_stylebox_override("panel",card_style)
-	root_box.add_child(card)
-	var card_stack=VBoxContainer.new()
-	card_stack.add_theme_constant_override("separation",8)
-	card.add_child(card_stack)
-	var info=row()
-	info.add_theme_constant_override("separation",12)
-	card_stack.add_child(info)
-	var icon_tile=tile(load("res://game/art/cauldron.png"),62)
-	card_icon=icon_tile.get_child(0)
-	info.add_child(icon_tile)
-	var copy=VBoxContainer.new()
-	copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	copy.alignment=BoxContainer.ALIGNMENT_CENTER
-	copy.add_theme_constant_override("separation",0)
-	info.add_child(copy)
-	card_title=label("Cauldron · Lv. 1",23)
-	copy.add_child(card_title)
-	card_detail=label("",16)
-	card_detail.add_theme_color_override("font_color",Color("4b4e72"))
-	copy.add_child(card_detail)
-	card_milestone=label("",14)
+	%CardTile.add_theme_stylebox_override("panel",framed(SAND,16,2))
+	card_icon=%CardIcon
+	card_title=%CardTitle
+	card_title.add_theme_font_size_override("font_size",22)
+	card_title.add_theme_color_override("font_color",INK)
+	card_detail=%CardDetail
+	card_detail.add_theme_font_size_override("font_size",16)
+	card_detail.add_theme_color_override("font_color",MUTED)
+	card_milestone=%CardMilestone
+	card_milestone.add_theme_font_size_override("font_size",14)
 	card_milestone.add_theme_color_override("font_color",Color("7b4fd0"))
-	copy.add_child(card_milestone)
-	upgrade_button=button("",func(): level_up(selected_station),64)
-	upgrade_button.custom_minimum_size.x=132
-	upgrade_button.size_flags_horizontal=Control.SIZE_SHRINK_END
-	info.add_child(upgrade_button)
-	status=label("",16)
-	status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	card_stack.add_child(status)
-	var chips=row()
-	chips.alignment=BoxContainer.ALIGNMENT_CENTER
-	card_stack.add_child(chips)
-	chips.add_theme_constant_override("separation",6)
+	upgrade_button=%LevelButton
+	style_button(upgrade_button,TEAL)
+	upgrade_button.pressed.connect(func(): level_up(selected_station))
+	status=%Status
+	status.add_theme_font_size_override("font_size",16)
+	status.add_theme_color_override("font_color",INK)
+	var chips:HBoxContainer=%Chips
 	for crop in range(model.cfg.crops.size()):
 		var c=chip(load("res://game/art/%s_t1.png" % Art.CROPS[crop]))
 		chips.add_child(c[0])
@@ -405,31 +384,44 @@ func build_ui():
 	chips.add_child(bottle[0])
 	bottle_count=bottle[1]
 	bottle_icon=bottle[0].get_child(0).get_child(0)
-	var actions=row()
-	card_stack.add_child(actions)
-	primary=button("",act_primary,64)
-	secondary=button("",act_secondary,64)
-	actions.add_child(primary)
-	actions.add_child(secondary)
-	var tabs=row()
-	tabs.add_theme_constant_override("separation",0)
-	var tab_bg=PanelContainer.new()
-	tab_bg.add_theme_stylebox_override("panel",style(CREAM,0))
-	tab_bg.add_child(tabs)
-	root_box.add_child(tab_bg)
-	shop_tab=button("Shop",func(): switch_tab("shop"),74)
-	shop_tab.icon=load("res://game/art/tab_shop.svg")
-	garden_tab=button("Garden",func(): switch_tab("garden"),74)
-	garden_tab.icon=load("res://game/art/tab_garden.svg")
-	for b in [shop_tab,garden_tab]:
-		b.add_theme_font_size_override("font_size",24)
-		b.add_theme_constant_override("icon_max_width",34)
-		b.add_theme_constant_override("h_separation",10)
-		tabs.add_child(b)
+	primary=%PrimaryButton
+	secondary=%SecondaryButton
+	for b in [primary,secondary]: style_button(b,TEAL)
+	primary.pressed.connect(act_primary)
+	secondary.pressed.connect(act_secondary)
+	# Bottom navigation.
+	var nav:PanelContainer=%BottomBar
+	var nav_style:=style(NIGHT,0)
+	nav_style.content_margin_top=6
+	nav_style.content_margin_bottom=8
+	nav_style.content_margin_left=6
+	nav_style.content_margin_right=6
+	nav.add_theme_stylebox_override("panel",nav_style)
+	shop_tab=%ShopButton
+	garden_tab=%GardenButton
+	var team_tab:Button=%TeamButton
+	var grimoire_tab:Button=%GrimoireButton
+	var upgrades_tab:Button=%UpgradesButton
+	shop_tab.pressed.connect(func(): switch_tab("shop"))
+	garden_tab.pressed.connect(func(): switch_tab("garden"))
+	team_tab.pressed.connect(func(): show_upgrades(true))
+	grimoire_tab.pressed.connect(func(): show_research())
+	upgrades_tab.pressed.connect(func(): show_upgrades(false))
+	nav_buttons=[shop_tab,garden_tab,team_tab,grimoire_tab,upgrades_tab]
+	# A dot on the Grimoire while the lectern is free and a page is affordable.
+	grimoire_dot=daily_dot.duplicate()
+	grimoire_dot.position=Vector2(62,4)
+	grimoire_tab.add_child(grimoire_dot)
+	for b in nav_buttons:
+		b.add_theme_font_size_override("font_size",14)
+		b.add_theme_constant_override("icon_max_width",40)
+		b.add_theme_constant_override("h_separation",2)
+		for state in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]: b.add_theme_color_override(state,CREAM)
+		squish(b)
 	upgrade_layer=PanelContainer.new()
 	upgrade_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	upgrade_layer.add_theme_stylebox_override("panel",style(Color(1.0,0.97,0.92,0.99),0))
-	add_child(upgrade_layer)
+	ui.add_child(upgrade_layer)
 	var content:=VBoxContainer.new()
 	content.add_theme_constant_override("separation",12)
 	upgrade_layer.add_child(margin(content,20,24))
@@ -442,6 +434,13 @@ func build_ui():
 	close.custom_minimum_size.x=52
 	close.size_flags_horizontal=Control.SIZE_SHRINK_END
 	title_row.add_child(close)
+	grimoire_tabs=row()
+	grimoire_tabs.add_theme_constant_override("separation",8)
+	for pair in [["Recipes",func(): show_book()],["Research",func(): show_research()]]:
+		var b:=button(pair[0],pair[1],46,SAND)
+		grimoire_tabs.add_child(b)
+	content.add_child(grimoire_tabs)
+	grimoire_tabs.hide()
 	var sub=label("Earn coins by selling potions, then grow your little business.",17)
 	overlay_sub=sub
 	sub.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -473,7 +472,7 @@ func build_ui():
 	toast_label=label("",18)
 	toast_label.add_theme_color_override("font_color",CREAM)
 	toast_row.add_child(toast_label)
-	add_child(toast)
+	ui.add_child(toast)
 	toast.hide()
 	modal=AcceptDialog.new()
 	modal.title="Little Lux"
@@ -527,7 +526,7 @@ func build_welcome():
 	welcome_layer=ColorRect.new()
 	welcome_layer.color=Color(0.1,0.08,0.2,0.45)
 	welcome_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(welcome_layer)
+	ui.add_child(welcome_layer)
 	var centre:=CenterContainer.new()
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	welcome_layer.add_child(centre)
@@ -608,7 +607,7 @@ func show_daily():
 	for i in range(model.s.daily.get("quests",[]).size()):
 		var q:Dictionary=model.s.daily.quests[i]
 		var icon_name:String=QUEST_ICONS[q.kind]
-		var icon:Texture2D=coin_tex if icon_name=="coin" else room.textures.get(icon_name+"_t1",room.textures.get(icon_name))
+		var icon:Texture2D=coin_tex if icon_name=="coin" else garden.textures.get(icon_name+"_t1",garden.textures.get(icon_name))
 		shop_card(icon,"","",func():
 			model.claim_quest(i)
 			after_action(),"quest_%d" % i)
@@ -623,7 +622,7 @@ func build_catch_up():
 	catch_layer.color=Color(0.1,0.08,0.2,0.45)
 	catch_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	catch_layer.mouse_filter=Control.MOUSE_FILTER_STOP
-	add_child(catch_layer)
+	ui.add_child(catch_layer)
 	var centre:=CenterContainer.new()
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	catch_layer.add_child(centre)
@@ -670,7 +669,8 @@ func start_catch_up(now: float):
 	catch_bar.value=0
 	catch_layer.show()
 	# The scene stays drawn but stops animating, leaving the frame for catch-up.
-	room.set_process(false)
+	garden.set_process(false)
+	shop.set_process(false)
 
 func step_catch_up():
 	var start:=Time.get_ticks_usec()
@@ -682,7 +682,8 @@ func step_catch_up():
 		var job:=catch_job
 		catch_job={}
 		catch_layer.hide()
-		room.set_process(true)
+		garden.set_process(true)
+		shop.set_process(true)
 		finish_catch_up(job)
 
 func finish_catch_up(job: Dictionary):
@@ -732,17 +733,51 @@ func toggle_mute():
 	refresh()
 
 func switch_tab(value: String):
+	var view:CanvasItem=garden if value=="garden" else shop
 	if value!=tab:
 		sound.play("tap")
-		room.particles.clear()
-		room.floaters.clear()
-		room.modulate=Color(1,1,1,0.35)
-		room.create_tween().tween_property(room,"modulate",Color.WHITE,0.22)
+		garden.particles.clear()
+		garden.floaters.clear()
+		shop.particles.clear()
+		shop.floaters.clear()
+		view.modulate=Color(1,1,1,0.35)
+		view.create_tween().tween_property(view,"modulate",Color.WHITE,0.22)
 	tab=value
-	room.garden=tab=="garden"
+	garden.visible=tab=="garden"
+	shop.visible=tab=="shop"
+	# Night sky behind the shop; lawn green around the garden yard.
+	$Sky.visible=tab=="shop"
+	$Backdrop.color=Color("8cc35a") if tab=="garden" else Color(0.29,0.18,0.5)
 	selected_station="garden" if tab=="garden" else "cauldron"
-	room.queue_redraw()
+	garden.queue_redraw()
 	refresh()
+
+# Fit the shop room into the stage (the space between the top bar and the
+# card), and lay the garden view over the same space.
+func fit_world():
+	if not is_instance_valid(stage): return
+	var rect:=stage.get_global_rect()
+	var s:=minf(rect.size.x/SHOP_FRAME.size.x,rect.size.y/SHOP_FRAME.size.y)
+	shop.scale=Vector2.ONE*s
+	shop.position=rect.position+(rect.size-SHOP_FRAME.size*s)/2-SHOP_FRAME.position*s
+	var g:=minf(rect.size.x/GARDEN_FRAME.size.x,rect.size.y/GARDEN_FRAME.size.y)
+	garden.scale=Vector2.ONE*g
+	garden.position=rect.position+(rect.size-GARDEN_FRAME.size*g)/2-GARDEN_FRAME.position*g
+
+func stage_input(event: InputEvent):
+	if not (event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed): return
+	if settings_box.visible:
+		settings_box.hide()
+		return
+	var point:Vector2=stage.get_global_transform()*event.position
+	var id:String=garden.station_at(point) if tab=="garden" else shop.station_at(point)
+	if id=="plot": buy_plot()
+	elif id=="visitor": serve_visitor()
+	elif id=="book": show_research()
+	elif id!="" and id!=selected_station:
+		selected_station=id
+		sound.play("tap")
+		refresh()
 
 func choose_recipe(r: int):
 	if storage.locked: return
@@ -764,10 +799,11 @@ func buy_plot():
 	after_action()
 
 func potion_icon(r: int) -> Texture2D:
-	return room.textures[Art.name_for(Art.POTIONS[r],model.level("cauldron"))]
+	return garden.textures[Art.name_for(Art.POTIONS[r],model.level("cauldron"))]
 
 func show_book():
 	clear_cards()
+	show_grimoire_tabs(0)
 	upgrade_title.text="Recipe Book"
 	overlay_sub.text="Unlock potions, then choose what to brew. Your beds plant whatever it needs."
 	var next:int=model.next_locked_recipe()
@@ -776,6 +812,222 @@ func show_book():
 		# Recipes beyond the next unlock stay a mystery until you get there.
 		if next!=-1 and r>next: purchase_cards["rc_%d" % r].get_child(0).get_child(0).get_child(0).modulate=Color(0.15,0.12,0.25,0.85)
 	open_cards()
+
+func show_grimoire_tabs(active: int):
+	grimoire_tabs.show()
+	for i in range(grimoire_tabs.get_child_count()):
+		var b:Button=grimoire_tabs.get_child(i)
+		paint(b,LAVENDER if i==active else SAND)
+
+# The Grimoire's Research tab: what the lectern is studying, the chapters, the
+# chapter's tree, and the selected page with its Study button.
+func show_research():
+	clear_cards()
+	show_grimoire_tabs(1)
+	upgrade_title.text="Grimoire"
+	var desk:=PanelContainer.new()
+	desk.add_theme_stylebox_override("panel",framed(SAND,18,2))
+	upgrade_list.add_child(desk)
+	var desk_rows:=VBoxContainer.new()
+	desk_rows.add_theme_constant_override("separation",8)
+	desk.add_child(desk_rows)
+	research_ui={"desks":[]}
+	for i in range(2):
+		var r:=row()
+		r.add_child(picture(shop.textures["lectern_t%d" % shop.tier_for("lectern")],44))
+		var copy:=VBoxContainer.new()
+		copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		copy.add_theme_constant_override("separation",2)
+		r.add_child(copy)
+		var l:=label("",17)
+		copy.add_child(l)
+		var bar:=ProgressBar.new()
+		bar.show_percentage=false
+		bar.custom_minimum_size.y=10
+		bar.add_theme_stylebox_override("background",style(Color("e6d9f2"),5))
+		bar.add_theme_stylebox_override("fill",style(PURPLE,5))
+		copy.add_child(bar)
+		var left:=label("",14)
+		left.add_theme_color_override("font_color",MUTED)
+		copy.add_child(left)
+		desk_rows.add_child(r)
+		research_ui.desks.append({"row":r,"label":l,"bar":bar,"left":left})
+	var chips:=HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation",6)
+	chips.add_theme_constant_override("v_separation",6)
+	upgrade_list.add_child(chips)
+	research_ui.chips={}
+	for c in model.research.chapters:
+		var b:=button(c.name,func():
+			grimoire_chapter=c.id
+			grimoire_page=""
+			sound.play("tap")
+			refresh(),44,CREAM)
+		b.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
+		b.custom_minimum_size.y=40
+		b.add_theme_font_size_override("font_size",15)
+		chips.add_child(b)
+		research_ui.chips[c.id]=b
+	var tree:=ResearchTree.new()
+	tree.model=model
+	tree.custom_minimum_size.y=310
+	tree.icons=research_icons()
+	tree.picked.connect(func(id):
+		grimoire_page=id
+		sound.play("tap")
+		refresh())
+	upgrade_list.add_child(tree)
+	research_ui.tree=tree
+	var card:=PanelContainer.new()
+	card.add_theme_stylebox_override("panel",framed(Color("fffaf1"),20,2))
+	upgrade_list.add_child(card)
+	var stack:=VBoxContainer.new()
+	stack.add_theme_constant_override("separation",4)
+	card.add_child(stack)
+	var title:=label("",21)
+	var flavour:=label("",15)
+	flavour.add_theme_color_override("font_color",MUTED)
+	var effect:=label("",17)
+	effect.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	for l in [title,flavour,effect]: stack.add_child(l)
+	var foot:=row()
+	stack.add_child(foot)
+	var cost:=label("",15)
+	cost.add_theme_color_override("font_color",MUTED)
+	cost.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	cost.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	foot.add_child(cost)
+	var study:=button("Study",study_selected,56)
+	study.custom_minimum_size.x=150
+	study.size_flags_horizontal=Control.SIZE_SHRINK_END
+	foot.add_child(study)
+	research_ui.detail={"card":card,"title":title,"flavour":flavour,"effect":effect,"cost":cost,"button":study}
+	open_cards()
+
+# Page and talent icons reuse the game's own sprites.
+func research_icons() -> Dictionary:
+	var icons:={}
+	for page in model.research.pages: icons[page.id]=coin_tex if page.icon=="coin" else shop.textures.get(page.icon,garden.textures.get(page.icon))
+	for t in model.cfg.talents: icons[t.id]=shop.textures.get(TALENT_ICONS[t.id],garden.textures.get(TALENT_ICONS[t.id]))
+	return icons
+
+func can_study_any() -> bool:
+	for page in model.research.pages:
+		if model.can_study(page.id): return true
+	return false
+
+# What a page does at a given rank, in the player's terms.
+func effect_text(page: Dictionary, at_rank: int) -> String:
+	var v:float=float(page.per_rank)*at_rank
+	match page.effect:
+		"double_harvest": return "%d%% chance a bed yields double" % roundi(v*100)
+		"herb_capacity": return "+%d herb bin space" % int(v)
+		"seed_library": return "New branches open with a third garden bed"
+		"harvest_yield": return "+%d herb from every bed's harvest" % int(v)
+		"moonlit": return "Beds grow twice as fast while you're away"
+		"bonus_bottle": return "%d%% chance a brew makes a bonus bottle" % roundi(v*100)
+		"herb_thrift": return "%d%% chance a brew uses no herbs" % roundi(v*100)
+		"shelf_space": return "+%d shelf space" % int(v)
+		"recipe_memory": return "Your first %d recipes after Energy Brew stay unlocked in a new branch" % int(v)
+		"twin_brew": return "Every brew makes two bottles"
+		"price": return "+%d%% potion prices" % roundi(v*100)
+		"visitor_rate": return "Special visitors come %d%% more often" % roundi(v*100)
+		"queue_spot": return "+%d queue spot" % int(v)
+		"visitor_wait": return "Special visitors wait %ds longer" % int(v)
+		"royal_warrant": return "VIPs pay ×15 instead of ×10 and wait twice as long"
+		"study_speed": return "Studies finish %d%% faster" % roundi(v*100)
+		"offline_hours": return "+%d h of work while you're away" % int(v/3600)
+		"second_desk": return "Study two pages at once"
+		"star_bonus": return "+%d%% Moon Stars from each branch" % roundi(v*100)
+		"early_branch": return "Open a new branch at Lv. %d instead of Lv. %d" % [model.PRESTIGE_LEVEL-int(v),model.PRESTIGE_LEVEL]
+	return ""
+
+func study_selected():
+	if storage.locked or grimoire_page=="": return
+	if grimoire_chapter=="star": buy_talent(grimoire_page)
+	elif model.start_study(grimoire_page): pop(research_ui.detail.card,1.0,0.35,1.06)
+	after_action()
+
+func refresh_research():
+	if research_ui.is_empty() or not upgrade_layer.visible: return
+	var s:Dictionary=model.s
+	overlay_sub.text="✦ %s Lore • pages stay learned through every branch" % model.short(int(s.research.lore))
+	for i in range(2):
+		var d:Dictionary=research_ui.desks[i]
+		d.row.visible=i<model.desks()
+		if i<s.research.active.size():
+			var a:Dictionary=s.research.active[i]
+			var page:Dictionary=model.pages[a.id]
+			var total:float=maxf(1.0,model.page_seconds(a.id))
+			d.label.text="Studying: %s%s" % [page.name," "+["I","II","III","IV","V"][model.rank(a.id)] if int(page.ranks)>1 else ""]
+			d.bar.value=100.0*(1.0-model.study_left(a)/total)
+			d.bar.visible=true
+			d.left.text="%s left • keeps going while you're away" % duration(model.study_left(a))
+		else:
+			d.label.text="The lectern is free"
+			d.bar.visible=false
+			d.left.text="Earn Lore by brewing, serving special visitors and reaching milestones"
+			d.left.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	for id in research_ui.chips:
+		var chip:Button=research_ui.chips[id]
+		paint(chip,LAVENDER if id==grimoire_chapter else CREAM,14)
+		for state in ["normal","hover","pressed","disabled"]:
+			var st:StyleBoxFlat=chip.get_theme_stylebox(state)
+			st.content_margin_left=9
+			st.content_margin_right=9
+	var tree=research_ui.tree
+	tree.chapter=grimoire_chapter
+	# Default to the page being studied, then the first one ready.
+	if grimoire_page=="" or not tree.entries().any(func(e): return e.id==grimoire_page):
+		var list:Array=tree.entries()
+		grimoire_page=list[0].id
+		for e in list:
+			if e.state=="studying":
+				grimoire_page=e.id
+				break
+		if not list.any(func(e): return e.id==grimoire_page and e.state=="studying"):
+			for e in list:
+				if e.state=="ready":
+					grimoire_page=e.id
+					break
+	tree.selected=grimoire_page
+	var d:Dictionary=research_ui.detail
+	var b:Button=d.button
+	if grimoire_chapter=="star":
+		var t:Dictionary=model.talent_info(grimoire_page)
+		var r:int=model.talent(grimoire_page)
+		var top:bool=r>=int(t.ranks)
+		d.title.text="%s · %d/%d" % [t.name,r,int(t.ranks)]
+		d.flavour.text="Celestial pages cost Moon Stars and are learned at once."
+		d.effect.text=t.benefit
+		d.cost.text="★ %d of %d free" % [model.stars_free(),int(s.prestige.stars)]
+		b.text="Learned" if top else "Learn • ★ %d" % model.talent_cost(grimoire_page)
+		b.icon=null
+		b.disabled=top or model.stars_free()<model.talent_cost(grimoire_page)
+		return
+	var page:Dictionary=model.pages[grimoire_page]
+	var rank:int=model.rank(grimoire_page)
+	var state:String=model.page_state(grimoire_page)
+	d.title.text=page.name+(" · %d/%d" % [rank,int(page.ranks)] if int(page.ranks)>1 else "")+(" ◆ Keystone" if int(page.tier)==3 else "")
+	d.flavour.text=page.flavour
+	if state=="learned": d.effect.text=effect_text(page,rank)
+	elif rank>0: d.effect.text="Now: %s\nNext: %s" % [effect_text(page,rank),effect_text(page,rank+1)]
+	else: d.effect.text=effect_text(page,1)
+	match state:
+		"learned":
+			d.cost.text="Fully learned"
+			b.text="Learned"
+		"studying":
+			d.cost.text="At the lectern now"
+			b.text="Studying…"
+		"locked":
+			d.cost.text="Needs %d ranks in %s first" % [int(model.research.tier_needs[int(page.tier)-1]),"tier one" if int(page.tier)==2 else "tier two"]
+			b.text="Locked"
+		_:
+			d.cost.text="✦ %s Lore • %s" % [model.short(model.page_cost(grimoire_page)),duration(model.page_seconds(grimoire_page))]
+			b.text="Desk busy" if s.research.active.size()>=model.desks() else "Study"
+	b.icon=null
+	b.disabled=not model.can_study(grimoire_page)
 
 func act_primary():
 	if storage.locked: return
@@ -804,12 +1056,12 @@ func buy(id: String):
 
 func buy_talent(id: String):
 	if storage.locked: return
-	if model.buy_talent(id) and purchase_cards.has("tl_"+id): pop(purchase_cards["tl_"+id],1.0,0.35,1.06)
+	if model.buy_talent(id) and research_ui.has("detail"): pop(research_ui.detail.card,1.0,0.35,1.06)
 	after_action()
 
 func level_up(id: String):
 	if storage.locked: return
-	room.selected=id
+	garden.selected=id
 	if model.level_up(id):
 		pop(upgrade_button,1.0,0.3,1.1)
 		if purchase_cards.has("lv_"+id): pop(purchase_cards["lv_"+id],1.0,0.3,1.05)
@@ -850,15 +1102,15 @@ func station_name(id: String) -> String:
 	return id
 
 func station_icon(id: String) -> Texture2D:
-	if id in model.WORKERS: return room.textures[id]
+	if id in model.WORKERS: return garden.textures[id]
 	if id=="garden":
-		return room.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
-	return room.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
+		return garden.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
+	return shop.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
 
 func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable, key: String):
 	var card:=PanelContainer.new()
-	var st:=style(Color("fffdf8"),20)
-	st.border_color=Color("ead9c4")
+	var st:=style(Color("fffaf1"),20)
+	st.border_color=Color(WOOD,.35)
 	st.set_border_width_all(2)
 	st.border_width_bottom=5
 	st.content_margin_left=12
@@ -903,22 +1155,23 @@ func show_upgrades(team: bool):
 	upgrade_title.text="Your team" if team else "Improve the shop"
 	overlay_sub.text="Earn coins by selling potions, then grow your little business."
 	if not team:
-		section("NEW BRANCH • Moon Stars raise every potion price for good")
-		shop_card(room.textures["dream_t3"],"","",func(): ask_branch(),"branch")
-		talent_section=section("")
-		for tl in model.cfg.talents: shop_card(room.textures[TALENT_ICONS[tl.id]],"","",buy_talent.bind(tl.id),"tl_"+tl.id)
+		section("NEW BRANCH • Moon Stars raise every potion price for good; spend them in the Grimoire's Celestial chapter")
+		shop_card(garden.textures["dream_t3"],"","",func(): ask_branch(),"branch")
 		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
 		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 		section("ONE-TIME UPGRADES")
 	for p in model.cfg.purchases:
 		if (p.id in ["gardener","brewer","cashier"]) != team: continue
-		shop_card(room.textures.get(PURCHASE_ICONS.get(p.id,"plant")),p.name,p.benefit,buy.bind(p.id),p.id)
+		var icon_name:String=PURCHASE_ICONS.get(p.id,"plant")
+		shop_card(shop.textures.get(icon_name,garden.textures.get(icon_name)),p.name,p.benefit,buy.bind(p.id),p.id)
 	if team:
 		section("TRAIN YOUR TEAM • levels 10, 25, 50, 75 and 100 double each helper")
 		for id in model.WORKERS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 	open_cards()
 
 func clear_cards():
+	grimoire_tabs.hide()
+	research_ui={}
 	for child in upgrade_list.get_children():
 		upgrade_list.remove_child(child)
 		child.queue_free()
@@ -930,23 +1183,17 @@ func show_decor():
 	clear_cards()
 	upgrade_title.text="Choose your décor"
 	overlay_sub.text="Select an unlocked look. New finishes arrive as your shop grows."
-	section("FLOORS • select any unlocked tile")
-	for i in range(3):
-		var item:Dictionary=Art.FLOORS[i]
-		var icon=load("res://game/art/decor/floor_%d.svg" % i)
-		shop_card(icon,item.name,item.unlock,select_decor.bind("floor",i),"decor_floor_%d" % i)
-	section("WALLS • select any unlocked finish")
-	for i in range(3):
-		var item:Dictionary=Art.WALLS[i]
-		var icon=load("res://game/art/decor/wall_%d.svg" % i)
-		shop_card(icon,item.name,item.unlock,select_decor.bind("wall",i),"decor_wall_%d" % i)
+	section("RUGS • the rug and doormat")
+	for i in range(3): shop_card(shop.textures["rug_t%d" % (i+1)],Art.RUGS[i],Art.FLOORS[i].unlock,select_decor.bind("floor",i),"decor_floor_%d" % i)
+	section("PLANTERS • the potted plant")
+	for i in range(3): shop_card(shop.textures["plant_t%d" % (i+1)],Art.PLANTERS[i],Art.WALLS[i].unlock,select_decor.bind("wall",i),"decor_wall_%d" % i)
 	open_cards()
 
 func select_decor(kind: String,variant: int):
 	if storage.locked: return
 	if model.select_decor(kind,variant):
 		sound.play("upgrade")
-		room.queue_redraw()
+		garden.queue_redraw()
 		persist()
 		refresh()
 
@@ -989,7 +1236,8 @@ func refresh():
 	var s: Dictionary=model.s
 	var id:=selected_station
 	var maxed:bool=model.level(id)>=int(model.cfg.max_level)
-	room.selected=id
+	garden.selected=id
+	shop.selected=id
 	card_title.text="%s · Lv. %d" % [station_name(id),model.level(id)]
 	card_icon.texture=station_icon(id)
 	card_detail.text=station_detail(id)
@@ -1029,15 +1277,16 @@ func refresh():
 			status.text=("★ VIP" if vip else "★ Special order")+" wants %s • tap them for %s" % [wants,model.short(model.visitor_pay())] if model.visitor_potion()>=0 else "%s wants %s • brew one before they leave" % ["A VIP" if vip else "A customer",wants]
 		secondary.text="Checkout busy" if s.serving else "Serve • %d waiting" % s.queue
 		secondary.disabled=s.serving or s.queue==0 or model.stock_count()==0
+	%Actions.visible=primary.visible or secondary.visible
 	if styled_tab!=tab:
 		styled_tab=tab
-		for b in [shop_tab,garden_tab]:
-			var active:bool=(b==shop_tab)==(tab=="shop")
-			var st:=style(LAVENDER if active else CREAM,0)
-			st.corner_radius_top_left=24
-			st.corner_radius_top_right=24
-			for state in ["normal","hover","pressed"]:b.add_theme_stylebox_override(state,st)
-			b.modulate=Color.WHITE if active else Color(1,1,1,0.75)
+		for b in nav_buttons:
+			var active:bool=b==shop_tab and tab=="shop" or b==garden_tab and tab=="garden"
+			var st:=style(Color(PURPLE,.85) if active else Color(1,1,1,0),16)
+			st.content_margin_top=4
+			st.content_margin_bottom=4
+			for state in ["normal","hover","pressed","focus"]: b.add_theme_stylebox_override(state,st)
+			b.modulate=Color.WHITE if active else Color(1,1,1,0.8)
 	for sid in model.STATIONS+model.WORKERS:
 		if purchase_buttons.has("lv_"+sid):
 			var b: Button=purchase_buttons["lv_"+sid]
@@ -1049,17 +1298,8 @@ func refresh():
 			purchase_cards["lv_"+sid].modulate=Color.WHITE if hired else Color(1,1,1,.62)
 			purchase_labels["lv_"+sid][0].text="%s · Lv. %d" % [station_name(sid),model.level(sid)]
 			purchase_labels["lv_"+sid][1].text=station_detail(sid)+"\n"+station_milestone(sid)
-	if is_instance_valid(talent_section): talent_section.text="MOON STAR TALENTS • ★ %d of %d to spend • spent stars still raise prices" % [model.stars_free(),int(s.prestige.stars)]
-	for tl in model.cfg.talents:
-		var key:String="tl_"+tl.id
-		if not purchase_buttons.has(key): continue
-		var b:Button=purchase_buttons[key]
-		var rank:int=model.talent(tl.id)
-		var top:bool=rank>=int(tl.ranks)
-		purchase_labels[key][0].text="%s · %d/%d" % [tl.name,rank,int(tl.ranks)]
-		purchase_labels[key][1].text=tl.benefit
-		b.text="Max" if top else "★ %d" % model.talent_cost(tl.id)
-		b.disabled=top or model.stars_free()<model.talent_cost(tl.id)
+	refresh_research()
+	grimoire_dot.visible=s.research.active.size()<model.desks() and can_study_any()
 	for p in model.cfg.purchases:
 		if purchase_buttons.has(p.id):
 			var b: Button=purchase_buttons[p.id]
@@ -1073,8 +1313,8 @@ func refresh():
 		var b:Button=purchase_buttons["branch"]
 		var next_name:String=model.BRANCHES[(int(s.prestige.branches)+1)%model.BRANCHES.size()]
 		purchase_labels["branch"][0].text="Open %s" % next_name
-		if model.stat("top_level")<model.PRESTIGE_LEVEL:
-			purchase_labels["branch"][1].text="Reach Lv. %d on any station to open a branch" % model.PRESTIGE_LEVEL
+		if model.stat("top_level")<model.prestige_level():
+			purchase_labels["branch"][1].text="Reach Lv. %d on any station to open a branch" % model.prestige_level()
 		else:
 			purchase_labels["branch"][1].text="+%d Moon Stars now • next star at %s earned this run" % [model.pending_stars(),model.short(pow(model.pending_stars()+1,2)*model.STAR_COINS)]
 		b.text="Open" if model.can_prestige() else "Locked"
@@ -1138,11 +1378,9 @@ func refresh():
 
 func flush_feedback():
 	for kind in model.feedback:
-		if kind in ["sale","dream_sale"]: room.leave_customer()
-		room.effect=kind
-		room.pulse=1.2
-		room.burst(kind)
-		sound.play("upgrade" if kind in ["level","milestone"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind=="visitor" else kind)
+		if tab=="garden": garden.burst(kind)
+		else: shop.burst(kind)
+		sound.play("upgrade" if kind in ["level","milestone","study"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind in ["visitor","study_start"] else kind)
 		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone","vip","request"]: Input.vibrate_handheld(40 if kind in ["milestone","vip"] else 18,0.3)
 	model.feedback.clear()
 
@@ -1201,6 +1439,7 @@ func _process(dt):
 		model.ensure_day(today())
 	model.check_achievements()
 	while not model.new_achievements.is_empty(): show_toast("Achievement: "+model.new_achievements.pop_front())
+	while not model.finished_studies.is_empty(): show_toast("Research complete: "+model.finished_studies.pop_front())
 	ui_timer+=dt
 	if ui_timer>=0.1:
 		ui_timer=0
@@ -1213,7 +1452,8 @@ func _notification(what):
 			var job:=catch_job
 			catch_job={}
 			catch_layer.hide()
-			room.set_process(true)
+			garden.set_process(true)
+			shop.set_process(true)
 			if not harness: storage.save(model,model.partial_timestamp(job))
 		elif is_instance_valid(status): persist()
 	if what==NOTIFICATION_APPLICATION_RESUMED and is_instance_valid(status) and not harness and catch_job.is_empty():
@@ -1223,18 +1463,17 @@ func _notification(what):
 
 func tap(b: Button):
 	if b.disabled or not b.is_visible_in_tree(): return
-	var e:=InputEventScreenTouch.new()
-	e.index=0
-	e.position=b.get_global_rect().get_center()
-	e.pressed=true
-	Input.parse_input_event(e)
-	await get_tree().process_frame
-	e=InputEventScreenTouch.new()
-	e.index=0
-	e.position=b.get_global_rect().get_center()
-	e.pressed=false
-	Input.parse_input_event(e)
-	await get_tree().process_frame
+	await tap_point(b.get_global_rect().get_center())
+
+# A real touch at a screen point, as a finger would make.
+func tap_point(point: Vector2):
+	for pressed in [true,false]:
+		var e:=InputEventScreenTouch.new()
+		e.index=0
+		e.position=point
+		e.pressed=pressed
+		Input.parse_input_event(e)
+		await get_tree().process_frame
 
 func screenshot(name: String):
 	# Let tab fades finish so evidence shows the settled scene.
@@ -1253,7 +1492,7 @@ func run_capture():
 	var recorded_renovation:=false
 	while model.s.elapsed < 300:
 		model.simulate(1.0)
-		room._process(1.0)
+		garden._process(1.0)
 		refresh()
 		if not model.owned("gardener"):
 			await tap(garden_tab)
@@ -1300,12 +1539,7 @@ func run_capture():
 			recorded_renovation=true
 		if model.owned("service") and model.s.plots.size()<3 and model.s.coins>=model.plot_cost():
 			await tap(garden_tab)
-			var point=room.view_offset+room.bed_center(model.s.plots.size())*room.view_scale
-			var press=InputEventMouseButton.new()
-			press.button_index=MOUSE_BUTTON_LEFT
-			press.pressed=true
-			press.position=point
-			room.gui_input.emit(press)
+			await tap_point(garden.bed_point(model.s.plots.size()))
 			print("PLAY purchase plot at ",model.s.elapsed)
 			await tap(shop_tab)
 	print("PLAY FINAL ",JSON.stringify(model.s))

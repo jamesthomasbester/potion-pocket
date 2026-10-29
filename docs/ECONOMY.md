@@ -78,3 +78,37 @@ Saves are now version 2. A version 1 save migrates on load with every station at
 Buying every rank costs 67 stars. Saves stay at version 4: older saves load with no talents and every helper at Lv. 1.
 
 **Branch themes.** The six branches cycle through Little Lux (meadow), Seaside (sand and sea), Snowpeak (snowfall), Night Market (lanterns and fireflies), Sunflower and Starfall (twinkling stars). Only the outdoor scenery changes; décor choices still apply indoors.
+
+## The Grimoire (v0.8)
+Research lives in the Grimoire (bottom bar, or tap the lectern), next to the Recipe Book. Tuning is in `data/research.json`.
+
+**Lore.** Each potion stocked earns Lore equal to its recipe number per bottle (Energy Brew 1 … Aurora Elixir 8). The first brew of each recipe in a branch earns 20 × the recipe number. A special order earns 5, a VIP 15, a station or helper milestone 25 × the milestone number, and a claimed daily goal 10. The 5-minute scripted run earns about 200 Lore.
+
+**Studies.** A page costs Lore and takes time at the lectern; each further rank costs 2.5× the Lore and takes 2× as long. One study runs at a time (two with Second Desk). Studies run on the game clock, so time away counts up to the offline cap like everything else (2 h base; lanterns, Night shift and Night Notes extend it). Tier two opens after 2 ranks of tier one in that chapter, the keystone after 3 ranks of tier two (or every tier-two page when the tier offers fewer).
+
+| Chapter | Page | Effect per rank | Ranks | First rank |
+|---|---|---|---:|---|
+| Herbology | Rich Compost | 10% chance a bed yields double | 3 | 10 Lore · 30 s |
+| | Deep Bins | +8 herb bin space | 3 | 25 · 2 m |
+| | Seed Library | New branches open with a third bed | 1 | 400 · 30 m |
+| | Gentle Rain | +1 herb per bed harvest | 1 | 650 · 45 m |
+| | Moonlit Garden (keystone) | Beds grow 2× while away | 1 | 6,000 · 6 h |
+| Brewing | Measured Pour | 5% chance of a bonus bottle | 3 | 15 · 45 s |
+| | Herb Thrift | 8% chance a brew uses no herbs | 3 | 30 · 2 m |
+| | Shelf Charms | +2 shelf space | 3 | 300 · 20 m |
+| | Recipe Memory | 2 more recipes stay unlocked in a new branch | 3 | 800 · 1 h |
+| | Twin Brew (keystone) | Every brew makes 2 bottles | 1 | 12,000 · 8 h |
+| Commerce | Fair Prices | +5% potion prices | 5 | 12 · 30 s |
+| | Shop Bell | Special visitors 20% more often | 2 | 40 · 3 m |
+| | Regulars | +1 queue spot | 2 | 500 · 40 m |
+| | Patient Patrons | Special visitors wait 10 s longer | 2 | 450 · 30 m |
+| | Royal Warrant (keystone) | VIPs pay ×15 and wait twice as long | 1 | 9,000 · 6 h |
+| Arcana | Quick Study | Studies 10% faster | 3 | 20 · 1 m |
+| | Night Notes | +1 h offline work | 2 | 60 · 5 m |
+| | Second Desk | Two studies at once | 1 | 1,500 · 1 h |
+| | Star Reading | +10% Moon Stars per branch | 2 | 1,200 · 1 h |
+| | Early Branch (keystone) | Open a branch at Lv. 20 | 1 | 15,000 · 8 h |
+
+The Celestial chapter is the Moon Star talents above, unchanged: they cost stars and are learned at once. They no longer appear in Improve.
+
+Lore, ranks and active studies carry over to every branch; first-brew Lore can be earned again in each branch. Bonus bottles and doubled harvests never overfill the shelf or a herb bin. Saves stay at version 4: older saves load with no Lore and no pages.
