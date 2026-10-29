@@ -4,6 +4,7 @@ const Storage = preload("res://game/storage.gd")
 const Room = preload("res://game/room.gd")
 const Sound = preload("res://game/sound.gd")
 const Art = preload("res://game/art_catalog.gd")
+const ResearchTree = preload("res://game/research_tree.gd")
 var model = Economy.new()
 var storage = Storage.new()
 var room
@@ -71,7 +72,12 @@ var card_detail: Label
 var upgrade_button: Button
 var card_milestone: Label
 var selected_station := "cauldron"
-var talent_section: Label
+# The Grimoire's Research tab: chapter shown, page selected and live widgets.
+var grimoire_tabs: HBoxContainer
+var grimoire_chapter := "herb"
+var grimoire_page := ""
+var research_ui := {}
+var grimoire_dot: Panel
 var purchase_labels := {}
 var coin_tex: Texture2D
 var harness := false
@@ -406,14 +412,18 @@ func build_ui():
 	shop_tab=%ShopButton
 	garden_tab=%GardenButton
 	var team_tab:Button=%TeamButton
-	var recipes_tab:Button=%RecipesButton
+	var grimoire_tab:Button=%GrimoireButton
 	var upgrades_tab:Button=%UpgradesButton
 	shop_tab.pressed.connect(func(): switch_tab("shop"))
 	garden_tab.pressed.connect(func(): switch_tab("garden"))
 	team_tab.pressed.connect(func(): show_upgrades(true))
-	recipes_tab.pressed.connect(func(): show_book())
+	grimoire_tab.pressed.connect(func(): show_research())
 	upgrades_tab.pressed.connect(func(): show_upgrades(false))
-	nav_buttons=[shop_tab,garden_tab,team_tab,recipes_tab,upgrades_tab]
+	nav_buttons=[shop_tab,garden_tab,team_tab,grimoire_tab,upgrades_tab]
+	# A dot on the Grimoire while the lectern is free and a page is affordable.
+	grimoire_dot=daily_dot.duplicate()
+	grimoire_dot.position=Vector2(62,4)
+	grimoire_tab.add_child(grimoire_dot)
 	for b in nav_buttons:
 		b.add_theme_font_size_override("font_size",14)
 		b.add_theme_constant_override("icon_max_width",40)
@@ -436,6 +446,13 @@ func build_ui():
 	close.custom_minimum_size.x=52
 	close.size_flags_horizontal=Control.SIZE_SHRINK_END
 	title_row.add_child(close)
+	grimoire_tabs=row()
+	grimoire_tabs.add_theme_constant_override("separation",8)
+	for pair in [["Recipes",func(): show_book()],["Research",func(): show_research()]]:
+		var b:=button(pair[0],pair[1],46,SAND)
+		grimoire_tabs.add_child(b)
+	content.add_child(grimoire_tabs)
+	grimoire_tabs.hide()
 	var sub=label("Earn coins by selling potions, then grow your little business.",17)
 	overlay_sub=sub
 	sub.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -764,7 +781,7 @@ func stage_input(event: InputEvent):
 		return
 	var id:String=shop.station_at(stage.get_global_transform()*event.position)
 	if id=="visitor": serve_visitor()
-	elif id=="book": show_book()
+	elif id=="book": show_research()
 	elif id!="" and id!=selected_station:
 		selected_station=id
 		sound.play("tap")
@@ -794,6 +811,7 @@ func potion_icon(r: int) -> Texture2D:
 
 func show_book():
 	clear_cards()
+	show_grimoire_tabs(0)
 	upgrade_title.text="Recipe Book"
 	overlay_sub.text="Unlock potions, then choose what to brew. Your beds plant whatever it needs."
 	var next:int=model.next_locked_recipe()
@@ -802,6 +820,222 @@ func show_book():
 		# Recipes beyond the next unlock stay a mystery until you get there.
 		if next!=-1 and r>next: purchase_cards["rc_%d" % r].get_child(0).get_child(0).get_child(0).modulate=Color(0.15,0.12,0.25,0.85)
 	open_cards()
+
+func show_grimoire_tabs(active: int):
+	grimoire_tabs.show()
+	for i in range(grimoire_tabs.get_child_count()):
+		var b:Button=grimoire_tabs.get_child(i)
+		paint(b,LAVENDER if i==active else SAND)
+
+# The Grimoire's Research tab: what the lectern is studying, the chapters, the
+# chapter's tree, and the selected page with its Study button.
+func show_research():
+	clear_cards()
+	show_grimoire_tabs(1)
+	upgrade_title.text="Grimoire"
+	var desk:=PanelContainer.new()
+	desk.add_theme_stylebox_override("panel",framed(SAND,18,2))
+	upgrade_list.add_child(desk)
+	var desk_rows:=VBoxContainer.new()
+	desk_rows.add_theme_constant_override("separation",8)
+	desk.add_child(desk_rows)
+	research_ui={"desks":[]}
+	for i in range(2):
+		var r:=row()
+		r.add_child(picture(shop.textures["lectern_t%d" % shop.tier_for("lectern")],44))
+		var copy:=VBoxContainer.new()
+		copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		copy.add_theme_constant_override("separation",2)
+		r.add_child(copy)
+		var l:=label("",17)
+		copy.add_child(l)
+		var bar:=ProgressBar.new()
+		bar.show_percentage=false
+		bar.custom_minimum_size.y=10
+		bar.add_theme_stylebox_override("background",style(Color("e6d9f2"),5))
+		bar.add_theme_stylebox_override("fill",style(PURPLE,5))
+		copy.add_child(bar)
+		var left:=label("",14)
+		left.add_theme_color_override("font_color",MUTED)
+		copy.add_child(left)
+		desk_rows.add_child(r)
+		research_ui.desks.append({"row":r,"label":l,"bar":bar,"left":left})
+	var chips:=HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation",6)
+	chips.add_theme_constant_override("v_separation",6)
+	upgrade_list.add_child(chips)
+	research_ui.chips={}
+	for c in model.research.chapters:
+		var b:=button(c.name,func():
+			grimoire_chapter=c.id
+			grimoire_page=""
+			sound.play("tap")
+			refresh(),44,CREAM)
+		b.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
+		b.custom_minimum_size.y=40
+		b.add_theme_font_size_override("font_size",15)
+		chips.add_child(b)
+		research_ui.chips[c.id]=b
+	var tree:=ResearchTree.new()
+	tree.model=model
+	tree.custom_minimum_size.y=310
+	tree.icons=research_icons()
+	tree.picked.connect(func(id):
+		grimoire_page=id
+		sound.play("tap")
+		refresh())
+	upgrade_list.add_child(tree)
+	research_ui.tree=tree
+	var card:=PanelContainer.new()
+	card.add_theme_stylebox_override("panel",framed(Color("fffaf1"),20,2))
+	upgrade_list.add_child(card)
+	var stack:=VBoxContainer.new()
+	stack.add_theme_constant_override("separation",4)
+	card.add_child(stack)
+	var title:=label("",21)
+	var flavour:=label("",15)
+	flavour.add_theme_color_override("font_color",MUTED)
+	var effect:=label("",17)
+	effect.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	for l in [title,flavour,effect]: stack.add_child(l)
+	var foot:=row()
+	stack.add_child(foot)
+	var cost:=label("",15)
+	cost.add_theme_color_override("font_color",MUTED)
+	cost.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	cost.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	foot.add_child(cost)
+	var study:=button("Study",study_selected,56)
+	study.custom_minimum_size.x=150
+	study.size_flags_horizontal=Control.SIZE_SHRINK_END
+	foot.add_child(study)
+	research_ui.detail={"card":card,"title":title,"flavour":flavour,"effect":effect,"cost":cost,"button":study}
+	open_cards()
+
+# Page and talent icons reuse the game's own sprites.
+func research_icons() -> Dictionary:
+	var icons:={}
+	for page in model.research.pages: icons[page.id]=coin_tex if page.icon=="coin" else shop.textures.get(page.icon,room.textures.get(page.icon))
+	for t in model.cfg.talents: icons[t.id]=shop.textures.get(TALENT_ICONS[t.id],room.textures.get(TALENT_ICONS[t.id]))
+	return icons
+
+func can_study_any() -> bool:
+	for page in model.research.pages:
+		if model.can_study(page.id): return true
+	return false
+
+# What a page does at a given rank, in the player's terms.
+func effect_text(page: Dictionary, at_rank: int) -> String:
+	var v:float=float(page.per_rank)*at_rank
+	match page.effect:
+		"double_harvest": return "%d%% chance a bed yields double" % roundi(v*100)
+		"herb_capacity": return "+%d herb bin space" % int(v)
+		"seed_library": return "New branches open with a third garden bed"
+		"harvest_yield": return "+%d herb from every bed's harvest" % int(v)
+		"moonlit": return "Beds grow twice as fast while you're away"
+		"bonus_bottle": return "%d%% chance a brew makes a bonus bottle" % roundi(v*100)
+		"herb_thrift": return "%d%% chance a brew uses no herbs" % roundi(v*100)
+		"shelf_space": return "+%d shelf space" % int(v)
+		"recipe_memory": return "Your first %d recipes after Energy Brew stay unlocked in a new branch" % int(v)
+		"twin_brew": return "Every brew makes two bottles"
+		"price": return "+%d%% potion prices" % roundi(v*100)
+		"visitor_rate": return "Special visitors come %d%% more often" % roundi(v*100)
+		"queue_spot": return "+%d queue spot" % int(v)
+		"visitor_wait": return "Special visitors wait %ds longer" % int(v)
+		"royal_warrant": return "VIPs pay ×15 instead of ×10 and wait twice as long"
+		"study_speed": return "Studies finish %d%% faster" % roundi(v*100)
+		"offline_hours": return "+%d h of work while you're away" % int(v/3600)
+		"second_desk": return "Study two pages at once"
+		"star_bonus": return "+%d%% Moon Stars from each branch" % roundi(v*100)
+		"early_branch": return "Open a new branch at Lv. %d instead of Lv. %d" % [model.PRESTIGE_LEVEL-int(v),model.PRESTIGE_LEVEL]
+	return ""
+
+func study_selected():
+	if storage.locked or grimoire_page=="": return
+	if grimoire_chapter=="star": buy_talent(grimoire_page)
+	elif model.start_study(grimoire_page): pop(research_ui.detail.card,1.0,0.35,1.06)
+	after_action()
+
+func refresh_research():
+	if research_ui.is_empty() or not upgrade_layer.visible: return
+	var s:Dictionary=model.s
+	overlay_sub.text="✦ %s Lore • pages stay learned through every branch" % model.short(int(s.research.lore))
+	for i in range(2):
+		var d:Dictionary=research_ui.desks[i]
+		d.row.visible=i<model.desks()
+		if i<s.research.active.size():
+			var a:Dictionary=s.research.active[i]
+			var page:Dictionary=model.pages[a.id]
+			var total:float=maxf(1.0,model.page_seconds(a.id))
+			d.label.text="Studying: %s%s" % [page.name," "+["I","II","III","IV","V"][model.rank(a.id)] if int(page.ranks)>1 else ""]
+			d.bar.value=100.0*(1.0-model.study_left(a)/total)
+			d.bar.visible=true
+			d.left.text="%s left • keeps going while you're away" % duration(model.study_left(a))
+		else:
+			d.label.text="The lectern is free"
+			d.bar.visible=false
+			d.left.text="Earn Lore by brewing, serving special visitors and reaching milestones"
+			d.left.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	for id in research_ui.chips:
+		var chip:Button=research_ui.chips[id]
+		paint(chip,LAVENDER if id==grimoire_chapter else CREAM,14)
+		for state in ["normal","hover","pressed","disabled"]:
+			var st:StyleBoxFlat=chip.get_theme_stylebox(state)
+			st.content_margin_left=9
+			st.content_margin_right=9
+	var tree=research_ui.tree
+	tree.chapter=grimoire_chapter
+	# Default to the page being studied, then the first one ready.
+	if grimoire_page=="" or not tree.entries().any(func(e): return e.id==grimoire_page):
+		var list:Array=tree.entries()
+		grimoire_page=list[0].id
+		for e in list:
+			if e.state=="studying":
+				grimoire_page=e.id
+				break
+		if not list.any(func(e): return e.id==grimoire_page and e.state=="studying"):
+			for e in list:
+				if e.state=="ready":
+					grimoire_page=e.id
+					break
+	tree.selected=grimoire_page
+	var d:Dictionary=research_ui.detail
+	var b:Button=d.button
+	if grimoire_chapter=="star":
+		var t:Dictionary=model.talent_info(grimoire_page)
+		var r:int=model.talent(grimoire_page)
+		var top:bool=r>=int(t.ranks)
+		d.title.text="%s · %d/%d" % [t.name,r,int(t.ranks)]
+		d.flavour.text="Celestial pages cost Moon Stars and are learned at once."
+		d.effect.text=t.benefit
+		d.cost.text="★ %d of %d free" % [model.stars_free(),int(s.prestige.stars)]
+		b.text="Learned" if top else "Learn • ★ %d" % model.talent_cost(grimoire_page)
+		b.icon=null
+		b.disabled=top or model.stars_free()<model.talent_cost(grimoire_page)
+		return
+	var page:Dictionary=model.pages[grimoire_page]
+	var rank:int=model.rank(grimoire_page)
+	var state:String=model.page_state(grimoire_page)
+	d.title.text=page.name+(" · %d/%d" % [rank,int(page.ranks)] if int(page.ranks)>1 else "")+(" ◆ Keystone" if int(page.tier)==3 else "")
+	d.flavour.text=page.flavour
+	if state=="learned": d.effect.text=effect_text(page,rank)
+	elif rank>0: d.effect.text="Now: %s\nNext: %s" % [effect_text(page,rank),effect_text(page,rank+1)]
+	else: d.effect.text=effect_text(page,1)
+	match state:
+		"learned":
+			d.cost.text="Fully learned"
+			b.text="Learned"
+		"studying":
+			d.cost.text="At the lectern now"
+			b.text="Studying…"
+		"locked":
+			d.cost.text="Needs %d ranks in %s first" % [int(model.research.tier_needs[int(page.tier)-1]),"tier one" if int(page.tier)==2 else "tier two"]
+			b.text="Locked"
+		_:
+			d.cost.text="✦ %s Lore • %s" % [model.short(model.page_cost(grimoire_page)),duration(model.page_seconds(grimoire_page))]
+			b.text="Desk busy" if s.research.active.size()>=model.desks() else "Study"
+	b.icon=null
+	b.disabled=not model.can_study(grimoire_page)
 
 func act_primary():
 	if storage.locked: return
@@ -830,7 +1064,7 @@ func buy(id: String):
 
 func buy_talent(id: String):
 	if storage.locked: return
-	if model.buy_talent(id) and purchase_cards.has("tl_"+id): pop(purchase_cards["tl_"+id],1.0,0.35,1.06)
+	if model.buy_talent(id) and research_ui.has("detail"): pop(research_ui.detail.card,1.0,0.35,1.06)
 	after_action()
 
 func level_up(id: String):
@@ -929,10 +1163,8 @@ func show_upgrades(team: bool):
 	upgrade_title.text="Your team" if team else "Improve the shop"
 	overlay_sub.text="Earn coins by selling potions, then grow your little business."
 	if not team:
-		section("NEW BRANCH • Moon Stars raise every potion price for good")
+		section("NEW BRANCH • Moon Stars raise every potion price for good; spend them in the Grimoire's Celestial chapter")
 		shop_card(room.textures["dream_t3"],"","",func(): ask_branch(),"branch")
-		talent_section=section("")
-		for tl in model.cfg.talents: shop_card(shop.textures.get(TALENT_ICONS[tl.id],room.textures.get(TALENT_ICONS[tl.id])),"","",buy_talent.bind(tl.id),"tl_"+tl.id)
 		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
 		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 		section("ONE-TIME UPGRADES")
@@ -946,6 +1178,8 @@ func show_upgrades(team: bool):
 	open_cards()
 
 func clear_cards():
+	grimoire_tabs.hide()
+	research_ui={}
 	for child in upgrade_list.get_children():
 		upgrade_list.remove_child(child)
 		child.queue_free()
@@ -1072,17 +1306,8 @@ func refresh():
 			purchase_cards["lv_"+sid].modulate=Color.WHITE if hired else Color(1,1,1,.62)
 			purchase_labels["lv_"+sid][0].text="%s · Lv. %d" % [station_name(sid),model.level(sid)]
 			purchase_labels["lv_"+sid][1].text=station_detail(sid)+"\n"+station_milestone(sid)
-	if is_instance_valid(talent_section): talent_section.text="MOON STAR TALENTS • ★ %d of %d to spend • spent stars still raise prices" % [model.stars_free(),int(s.prestige.stars)]
-	for tl in model.cfg.talents:
-		var key:String="tl_"+tl.id
-		if not purchase_buttons.has(key): continue
-		var b:Button=purchase_buttons[key]
-		var rank:int=model.talent(tl.id)
-		var top:bool=rank>=int(tl.ranks)
-		purchase_labels[key][0].text="%s · %d/%d" % [tl.name,rank,int(tl.ranks)]
-		purchase_labels[key][1].text=tl.benefit
-		b.text="Max" if top else "★ %d" % model.talent_cost(tl.id)
-		b.disabled=top or model.stars_free()<model.talent_cost(tl.id)
+	refresh_research()
+	grimoire_dot.visible=s.research.active.size()<model.desks() and can_study_any()
 	for p in model.cfg.purchases:
 		if purchase_buttons.has(p.id):
 			var b: Button=purchase_buttons[p.id]
@@ -1096,8 +1321,8 @@ func refresh():
 		var b:Button=purchase_buttons["branch"]
 		var next_name:String=model.BRANCHES[(int(s.prestige.branches)+1)%model.BRANCHES.size()]
 		purchase_labels["branch"][0].text="Open %s" % next_name
-		if model.stat("top_level")<model.PRESTIGE_LEVEL:
-			purchase_labels["branch"][1].text="Reach Lv. %d on any station to open a branch" % model.PRESTIGE_LEVEL
+		if model.stat("top_level")<model.prestige_level():
+			purchase_labels["branch"][1].text="Reach Lv. %d on any station to open a branch" % model.prestige_level()
 		else:
 			purchase_labels["branch"][1].text="+%d Moon Stars now • next star at %s earned this run" % [model.pending_stars(),model.short(pow(model.pending_stars()+1,2)*model.STAR_COINS)]
 		b.text="Open" if model.can_prestige() else "Locked"
@@ -1163,7 +1388,7 @@ func flush_feedback():
 	for kind in model.feedback:
 		if tab=="garden": room.burst(kind)
 		else: shop.burst(kind)
-		sound.play("upgrade" if kind in ["level","milestone"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind=="visitor" else kind)
+		sound.play("upgrade" if kind in ["level","milestone","study"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind in ["visitor","study_start"] else kind)
 		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone","vip","request"]: Input.vibrate_handheld(40 if kind in ["milestone","vip"] else 18,0.3)
 	model.feedback.clear()
 
@@ -1222,6 +1447,7 @@ func _process(dt):
 		model.ensure_day(today())
 	model.check_achievements()
 	while not model.new_achievements.is_empty(): show_toast("Achievement: "+model.new_achievements.pop_front())
+	while not model.finished_studies.is_empty(): show_toast("Research complete: "+model.finished_studies.pop_front())
 	ui_timer+=dt
 	if ui_timer>=0.1:
 		ui_timer=0

@@ -20,7 +20,7 @@
 [ext_resource type="Texture2D" path="res://game/art/ui/shop.png" id="18_shop"]
 [ext_resource type="Texture2D" path="res://game/art/ui/garden.png" id="19_garden"]
 [ext_resource type="Texture2D" path="res://game/art/brewer.png" id="20_team"]
-[ext_resource type="Texture2D" path="res://game/art/ui/potion.png" id="21_potion"]
+[ext_resource type="Texture2D" path="res://game/art/ui/book.png" id="21_book"]
 [ext_resource type="Texture2D" path="res://game/art/ui/market.png" id="22_market"]
 [ext_resource type="Texture2D" path="res://game/art/shop/cauldron_t1.png" id="23_card"]
 
@@ -378,13 +378,13 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
 
-[node name="RecipesButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
+[node name="GrimoireButton" type="Button" parent="HUD/Root/Layout/BottomBar/Tabs"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Recipes"
-icon = ExtResource("21_potion")
+text = "Grimoire"
+icon = ExtResource("21_book")
 icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true

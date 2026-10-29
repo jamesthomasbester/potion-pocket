@@ -45,8 +45,10 @@ const DOOR = Vector2(.95,.95)
 const OUTSIDE = Vector2(1.03,1.02)
 const QUEUE = [Vector2(.8,.84),Vector2(.6,.9),Vector2(.4,.93)]
 const BREWER_SPOT = Vector2(.27,.1)
-const CASHIER_SPOT = Vector2(.72,.33)
+const CASHIER_SPOT = Vector2(.86,.3)
 const VISITOR_SPOT = Vector2(.14,.64)
+# Where the owner stands to read while the lectern has a study running.
+const READING_SPOT = Vector2(.55,.05)
 const OWNER_LOOP = Vector2(.45,.62)
 const STATIONS = {"Cauldron":"cauldron","PotionShelf":"shelf","Counter":"counter"}
 
@@ -149,6 +151,10 @@ func sync_team():
 		owner_actor.position=floor_at(BREWER_SPOT)
 		owner_actor.dir=0
 		owner_actor.action=actor_action("owner",not model.s.ready)
+	elif not model.s.research.active.is_empty() and float(actor_timers.get("owner",0.0))<=0:
+		owner_actor.position=floor_at(READING_SPOT)
+		owner_actor.dir=0
+		owner_actor.action="work"
 	else:
 		var before:Vector2=owner_actor.position
 		var g=OWNER_LOOP+Vector2(sin(clock*.6)*.07,cos(clock*.6)*.05)
@@ -281,6 +287,10 @@ func burst(kind:String):
 				floaters.append({"p":at-Vector2(30,10),"t":0.0,"text":"×2!","dream":true,"coin":false})
 			else:
 				spray(at,10,"star",Color("fff1af"),150,-110,120,.8)
+		"study","study_start":
+			var at=prop("Lectern").position-Vector2(0,95)
+			spray(at,22 if kind=="study" else 8,"star",Color("fff1af"),200,-150,120,1.1)
+			if kind=="study": floaters.append({"p":at-Vector2(40,20),"t":0.0,"text":"Learned!","dream":true,"coin":false})
 		"upgrade":
 			spray(Vector2(270,450),26,"star",Color("ffd765"),300,-120,140,1.2)
 			spray(Vector2(270,450),14,"dot",Color("b58af1"),260,-160,260,1.0)
@@ -340,6 +350,13 @@ func draw_overlay():
 			o.draw_circle(cauldron+Vector2(sin(i*3+clock)*22,-70-t*50),3+2*t,Color(.8,.6,1,1-t))
 		pill(o,cauldron+Vector2(-150,-150),"Ready to stock" if model.s.ready else "Brewing",model.s.brew_progress/model.brew_time(model.s.pot))
 	if model.s.ready: glints(o,cauldron-Vector2(0,80),Vector2(40,12),.2)
+	# A running study lights the lectern and shows its progress above it.
+	if not model.s.research.active.is_empty():
+		var lectern:=prop("Lectern").position
+		var a:Dictionary=model.s.research.active[0]
+		o.draw_circle(lectern-Vector2(0,92),34+sin(clock*2.5)*3,Color(1,.9,.55,.22))
+		glints(o,lectern-Vector2(0,100),Vector2(26,8),.7)
+		pill(o,lectern+Vector2(-10,-218),"Studying",1.0-model.study_left(a)/maxf(1.0,model.page_seconds(a.id)))
 	# The newest bottles wait on the counter, most valuable first.
 	var kinds:=[]
 	for r in range(model.s.stock.size()-1,-1,-1):

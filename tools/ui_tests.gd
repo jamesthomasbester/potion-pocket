@@ -100,7 +100,7 @@ func run():
 	await tap_at(app,counter.to_global(Vector2(0,-90)))
 	check(app.selected_station=="counter" and "Counter" in app.card_title.text,"tapping the counter selects its station")
 	await tap_at(app,app.shop.prop("Lectern").to_global(Vector2(0,-200)))
-	check(app.upgrade_layer.visible and app.upgrade_title.text=="Recipe Book","tapping the lectern opens the Recipe Book")
+	check(app.upgrade_layer.visible and app.upgrade_title.text=="Grimoire" and app.research_ui.has("tree"),"tapping the lectern opens the Grimoire's research")
 	app.upgrade_layer.hide()
 	check(app.coins_label.text=="0","coin header displays integer balance")
 	var room_rect:Rect2=app.shop.get_node("Room").get_global_transform()*app.shop.get_node("Room").get_rect()
@@ -168,13 +168,36 @@ func run():
 	await process_frame
 	await app.tap(app.purchase_buttons["lv_gardener"])
 	check(app.model.level("gardener")==2 and app.model.s.coins==900 and "Lv. 2" in app.purchase_labels["lv_gardener"][0].text,"Team card trains Pip for the listed cost")
+	app.upgrade_layer.hide()
+	# The Grimoire: open it from the nav bar, pick a page in the tree, study it.
+	app.model.s.research.lore=10
+	await app.tap(app.get_node("%GrimoireButton"))
+	await process_frame
+	check(app.upgrade_layer.visible and app.research_ui.has("tree") and app.grimoire_page=="rich_compost","the Grimoire opens on Herbology with the first ready page selected")
+	var study_button:Button=app.research_ui.detail.button
+	sc.ensure_control_visible(study_button)
+	await process_frame
+	await app.tap(study_button)
+	check(app.model.s.research.lore==0 and app.model.page_state("rich_compost")=="studying" and study_button.text=="Studying…","the Study button starts the selected page at the lectern")
+	app.model.simulate(31)
+	app.refresh()
+	check(app.model.rank("rich_compost")==1,"the page is learned once its study runs out")
+	var tree=app.research_ui.tree
+	sc.ensure_control_visible(tree)
+	await process_frame
+	var deep=tree.entries().filter(func(e): return e.id=="deep_bins")[0]
+	await tap_at(app,tree.get_global_transform()*tree.spot(deep))
+	check(app.grimoire_page=="deep_bins" and "Deep Bins" in app.research_ui.detail.title.text,"tapping a page in the tree selects it")
 	app.model.s.prestige.stars=1
+	await tap_at(app,app.research_ui.chips["star"].get_global_rect().get_center())
+	check(app.grimoire_chapter=="star" and app.grimoire_page=="roots","the Celestial chapter holds the Moon Star talents")
+	sc.ensure_control_visible(study_button)
+	await process_frame
+	await app.tap(study_button)
+	check(app.model.talent("roots")==1 and study_button.disabled and study_button.text=="Learn • ★ 2","Celestial pages spend Moon Stars and are learned at once")
 	app.show_upgrades(false)
 	await process_frame
-	sc.ensure_control_visible(app.purchase_buttons["tl_roots"])
-	await process_frame
-	await app.tap(app.purchase_buttons["tl_roots"])
-	check(app.model.talent("roots")==1 and app.purchase_buttons["tl_roots"].disabled and app.purchase_buttons["tl_roots"].text=="★ 2","Improve card spends a Moon Star on a talent")
+	check(not app.purchase_buttons.has("tl_roots"),"talents no longer appear in Improve")
 	app.upgrade_layer.hide()
 	app.model.s.prestige.branches=1
 	check(app.room.theme().extra=="sea","second branch draws the seaside garden theme")

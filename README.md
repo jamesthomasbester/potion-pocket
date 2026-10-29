@@ -69,6 +69,9 @@ Furniture tiers: stations follow their level. The lectern, books and bookcase fo
 
 The new art's sources are in `art/v2/`. `art/` is excluded from export, so `python3 tools/import_v2_art.py` copies the chosen cut-outs into `game/art/shop/` and `game/art/ui/`. It halves the furniture size, and the picks are listed at the top of the script. The garden tab still uses the drawn garden in `game/room.gd`.
 
+## The Grimoire (0.8.0)
+A research tree studied at the lectern. Lore comes from brewing, first brews, special visitors, milestones and daily goals. Each page takes real game time, and every learned page lasts through every branch. There are four chapters of five pages (Herbology, Brewing, Commerce, Arcana), plus the Celestial chapter, which now holds the Moon Star talents. Open it from **Grimoire** in the bottom bar or by tapping the lectern. While a study runs, the lectern glows and the owner reads beside it. `game/research_tree.gd` draws a chapter. Pages, costs and timings are in `data/research.json`. Details: `docs/ECONOMY.md`.
+
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.
 - `builds/little-lux-project.zip`: self-contained source, docs and screenshot evidence (excludes the APK, videos and import cache).

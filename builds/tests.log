@@ -166,6 +166,45 @@ PASS overspent talents rejected
 PASS talent above its last rank rejected
 PASS invalid helper level rejected
 PASS save from before talents and helper levels loads
+PASS a first Energy Brew earns 1 Lore per bottle plus 20 for the recipe's first brew
+PASS later brews of the same recipe earn only the bottle's Lore
+PASS studying needs Lore
+PASS tier two stays locked until tier one is studied
+PASS a study costs its Lore and starts at the lectern
+PASS one desk means one study at a time
+PASS a study isn't learned before its time
+PASS the page is learned when its study runs out
+PASS a learned page adds its effect
+PASS each rank costs 2.5x the Lore and takes twice as long
+PASS two tier-one ranks open tier two
+PASS Deep Bins adds herb bin space
+PASS the keystone needs tier two first
+PASS every tier-two page opens the keystone when the tier offers fewer than three ranks
+PASS Gentle Rain adds a herb to every harvest
+PASS Moonlit Garden grows beds twice as fast while away
+PASS and at the usual speed while you play
+PASS Quick Study shortens studies
+PASS Second Desk studies two pages at once
+PASS a save with Lore, ranks and active studies validates
+PASS Shelf Charms adds shelf space
+PASS Fair Prices raises potion prices
+PASS Regulars adds a queue spot
+PASS Shop Bell brings special visitors sooner
+PASS Patient Patrons and Royal Warrant keep visitors longer, and VIPs pay x15
+PASS Night Notes extends offline work
+PASS Early Branch opens branches at Lv. 20
+PASS Twin Brew makes two bottles a brew
+PASS Star Reading adds Moon Stars from a branch
+PASS a Lv. 20 station opens a branch with Early Branch
+PASS research and Lore carry over to a new branch
+PASS Recipe Memory keeps the first two recipes
+PASS Seed Library opens the branch with a third bed
+PASS first-brew Lore can be earned again in the new branch
+PASS post-branch save with research validates
+PASS an unknown research page is rejected
+PASS studying a fully learned page is rejected
+PASS a save from before the Grimoire loads
+PASS fast-forward finishes studies exactly as tick-by-tick play
 PASS chunked catch-up equals one-shot catch-up
 PASS mid catch-up pause saves
 PASS reopened save loads
@@ -175,4 +214,4 @@ PASS fast-forward matches tick-by-tick: gardener
 PASS fast-forward matches tick-by-tick: gardener,brewer
 PASS fast-forward matches tick-by-tick: gardener,brewer,cashier,recipe
 PASS fast-forward matches tick-by-tick: cashier
-RESULT 175 checks / 0 failures
+RESULT 214 checks / 0 failures

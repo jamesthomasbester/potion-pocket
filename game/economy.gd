@@ -1,6 +1,13 @@
 extends RefCounted
 
 var cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/economy.json"))
+# The Grimoire's research pages; Moon Star talents (cfg.talents) are its Celestial chapter.
+var research: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/research.json"))
+var pages := {}
+# Pages finished since the UI last showed them.
+var finished_studies: Array = []
+# True while offline catch-up runs; the Moonlit Garden page grows beds faster then.
+var away := false
 var s: Dictionary
 var events: Array = []
 var feedback: Array = []
@@ -38,6 +45,7 @@ const STATIONS := ["garden","cauldron","counter","shelf"]
 const WORKERS := ["gardener","brewer","cashier"]
 
 func _init():
+	for page in research.pages: pages[page.id] = page
 	fresh()
 
 func fresh():
@@ -47,7 +55,7 @@ func fresh():
 	dirty = true
 
 func fresh_state() -> Dictionary:
-	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{},"prestige":{"stars":0,"branches":0,"run_earned":0,"talents":{}}}
+	var state := {"version":VERSION,"levels":default_levels(),"decor":default_decor(),"coins":int(cfg.starting_coins),"herbs":zeros(cfg.crops.size()),"stock":zeros(cfg.recipes.size()),"plots":[{"crop":0,"progress":0.0},{"crop":0,"progress":0.0}],"recipe":0,"visitor":{},"visitor_timer":0.0,"pot":-1,"brew_progress":0.0,"ready":false,"queue":0,"arrival":0.0,"service":0.0,"serving":false,"owned":{},"flags":{},"elapsed":0.0,"timestamp":0.0,"muted":false,"offline_notice":{},"tutorial":0,"daily":{},"login":{},"stats":{},"achievements":{},"prestige":{"stars":0,"branches":0,"run_earned":0,"talents":{}},"research":{"lore":0,"ranks":{},"active":[]},"brewed_kinds":{}}
 	state.stock[0] = int(cfg.starting_stock)
 	return state
 
@@ -157,6 +165,7 @@ func level_up(id: String) -> bool:
 	# Milestones load from JSON as floats, so compare the reached one as an int.
 	if milestones_reached(id) > 0 and int(cfg.milestones[milestones_reached(id) - 1]) == level(id):
 		event("milestone_%s_%d" % [id, level(id)])
+		add_lore(int(research.lore.milestone) * milestones_reached(id))
 		feedback.append("milestone")
 	else:
 		feedback.append("level")
@@ -165,11 +174,11 @@ func level_up(id: String) -> bool:
 
 func herb_capacity() -> int:
 	if _fast: return _d.herb_capacity
-	return int(cfg.herb_capacity) + 2 * (level("garden") - 1)
+	return int(cfg.herb_capacity) + 2 * (level("garden") - 1) + int(bonus("herb_capacity"))
 
 func queue_capacity() -> int:
 	if _fast: return _d.queue_capacity
-	return 3 + milestones_reached("counter")
+	return 3 + milestones_reached("counter") + int(bonus("queue_spot"))
 
 func arrival_time() -> float:
 	if _fast: return _d.arrival_time
@@ -277,7 +286,7 @@ func spawn_visitor():
 	for r in range(cfg.recipes.size()):
 		if recipe_unlocked(r): unlocked.append(r)
 	var want: int = unlocked[int(roll(3) * unlocked.size()) % unlocked.size()]
-	s.visitor = {"kind":kind,"recipe":want,"left":float(cfg.visitors.wait)}
+	s.visitor = {"kind":kind,"recipe":want,"left":visitor_wait(kind)}
 	feedback.append("visitor")
 
 # Which potion the special visitor would take right now, or -1.
@@ -291,7 +300,20 @@ func visitor_potion() -> int:
 func visitor_pay() -> int:
 	var r := visitor_potion()
 	if r < 0: r = int(s.visitor.get("recipe", 0))
-	return int(price(r) * int(cfg.visitors.vip_pay if s.visitor.get("kind") == "vip" else cfg.visitors.request_pay) * talent_mult("patrons"))
+	return int(price(r) * pay_multiple(s.visitor.get("kind", "request")) * talent_mult("patrons"))
+
+func pay_multiple(kind: String) -> int:
+	if kind != "vip": return int(cfg.visitors.request_pay)
+	return 15 if bonus("royal_warrant") > 0 else int(cfg.visitors.vip_pay)
+
+# How long a special visitor waits; Patient Patrons and Royal Warrant add to it.
+func visitor_wait(kind: String) -> float:
+	var wait := float(cfg.visitors.wait) + bonus("visitor_wait")
+	return wait * 2.0 if kind == "vip" and bonus("royal_warrant") > 0 else wait
+
+func visitor_every() -> float:
+	if _fast: return _d.visitor_every
+	return float(cfg.visitors.every) / (1.0 + bonus("visitor_rate"))
 
 func serve_visitor() -> bool:
 	var r := visitor_potion()
@@ -303,6 +325,7 @@ func serve_visitor() -> bool:
 	count("specials", 1)
 	count("earned", pay)
 	if s.visitor.kind == "vip": count("vips", 1)
+	add_lore(int(research.lore.vip if s.visitor.kind == "vip" else research.lore.request))
 	feedback.append("vip" if s.visitor.kind == "vip" else "request")
 	last_visitor_pay = pay
 	s.visitor = {}
@@ -326,11 +349,12 @@ func buy_plot() -> bool:
 
 func capacity() -> int:
 	if _fast: return _d.capacity
-	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1) + level("shelf") - 1
+	return int(cfg.shelf_capacity) * (2 if owned("capacity") else 1) + level("shelf") - 1 + int(bonus("shelf_space"))
 
 func grow_time(crop: int) -> float:
 	if _fast: return _d.grow_time[crop]
-	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden") / station_mult("gardener") / talent_mult("roots")
+	var moon := bonus("moonlit") if away and bonus("moonlit") > 0 else 1.0
+	return float(cfg.crops[crop].grow) / (1.5 if owned("grow") else 1.0) / station_mult("garden") / station_mult("gardener") / talent_mult("roots") / moon
 
 func brew_time(recipe: int) -> float:
 	if _fast: return _d.brew_time[recipe]
@@ -340,15 +364,20 @@ func price(recipe: int) -> int:
 	if _fast: return _d.price[recipe]
 	var shelf: float = (1.0 + cfg.shelf_price * (level("shelf") - 1)) * pow(2.0, milestones_reached("shelf"))
 	var stars := 1.0 + STAR_BONUS * int(s.prestige.stars)
-	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf * stars * station_mult("cashier")))
+	return int(round(cfg.recipes[recipe].price * (1.25 if owned("renovation") else 1.0) * shelf * stars * station_mult("cashier") * (1.0 + bonus("price"))))
+
+# Herbs one bed gives per harvest, before a Rich Compost double.
+func harvest_amount(crop: int) -> int:
+	return int(cfg.crops[crop].yield) + int(bonus("harvest_yield"))
 
 func harvest() -> bool:
 	var did := false
 	for i in range(s.plots.size()):
 		var p: Dictionary = s.plots[i]
 		var c := int(p.crop)
-		var amount := int(cfg.crops[c].yield)
+		var amount := harvest_amount(c)
 		if p.progress >= grow_time(c) and s.herbs[c] + amount <= herb_capacity():
+			if roll(10 + i) < bonus("double_harvest"): amount = mini(amount * 2, herb_capacity() - int(s.herbs[c]))
 			s.herbs[c] += amount
 			count("harvested", amount)
 			p.progress = 0.0
@@ -364,7 +393,9 @@ func brew() -> bool:
 	var r := int(s.recipe)
 	if s.pot != -1 or stock_count() >= capacity() or not can_brew(r):
 		return false
-	for n in needs(r): s.herbs[int(n[0])] -= int(n[1])
+	# Herb Thrift: sometimes the brew needs no herbs at all.
+	if roll(21) >= bonus("herb_thrift"):
+		for n in needs(r): s.herbs[int(n[0])] -= int(n[1])
 	s.pot = r
 	s.brew_progress = 0.0
 	s.ready = false
@@ -375,7 +406,16 @@ func brew() -> bool:
 func stock() -> bool:
 	if not s.ready or stock_count() + cfg.recipes[int(s.pot)].produce > capacity():
 		return false
-	s.stock[int(s.pot)] += int(cfg.recipes[int(s.pot)].produce)
+	# Twin Brew doubles the batch and Measured Pour may add a bottle, as far as the shelf has room.
+	var r := int(s.pot)
+	var bottles: int = int(cfg.recipes[r].produce) * (2 if bonus("twin_brew") > 0 else 1)
+	if roll(20) < bonus("bonus_bottle"): bottles += 1
+	bottles = mini(bottles, capacity() - stock_count())
+	s.stock[r] += bottles
+	add_lore(int(research.lore.per_bottle) * (r + 1) * bottles)
+	if not s.brewed_kinds.has(str(r)):
+		s.brewed_kinds[str(r)] = true
+		add_lore(int(research.lore.first_brew) * (r + 1))
 	s.pot = -1
 	s.ready = false
 	s.brew_progress = 0.0
@@ -423,6 +463,7 @@ func select_recipe(value: int):
 
 func tick(dt: float):
 	s.elapsed += dt
+	if not s.research.active.is_empty() and s.elapsed >= next_study_end(): finish_studies()
 	# Hot loop: read cached numbers and worker flags once, and only call the
 	# actions that could do something this tick. Rules are unchanged.
 	var gardener: bool = _d.gardener if _fast else owned("gardener")
@@ -445,7 +486,7 @@ func tick(dt: float):
 		if s.pot == -1: brew()
 	if s.visitor.is_empty():
 		s.visitor_timer += dt
-		if s.visitor_timer >= cfg.visitors.every:
+		if s.visitor_timer >= visitor_every():
 			s.visitor_timer = 0.0
 			spawn_visitor()
 	else:
@@ -556,6 +597,7 @@ func claim_quest(i: int) -> bool:
 	if q.claimed or int(q.progress) < int(q.target): return false
 	q.claimed = true
 	s.coins += int(q.reward)
+	add_lore(int(research.lore.daily))
 	event("daily_claim_" + q.kind)
 	feedback.append("upgrade")
 	dirty = true
@@ -577,10 +619,14 @@ func claimable() -> bool:
 	return false
 
 func pending_stars() -> int:
-	return int(floor(sqrt(float(s.prestige.run_earned) / STAR_COINS)))
+	return int(floor(sqrt(float(s.prestige.run_earned) / STAR_COINS) * (1.0 + bonus("star_bonus"))))
+
+# Station level needed to open a branch; Early Branch lowers it.
+func prestige_level() -> int:
+	return PRESTIGE_LEVEL - int(bonus("early_branch"))
 
 func can_prestige() -> bool:
-	return stat("top_level") >= PRESTIGE_LEVEL and pending_stars() >= 1
+	return stat("top_level") >= prestige_level() and pending_stars() >= 1
 
 # Moon Star talents: rank n costs n stars, and spending never lowers the
 # star price bonus, which counts every star earned.
@@ -615,6 +661,101 @@ func buy_talent(id: String) -> bool:
 	dirty = true
 	return true
 
+# --- The Grimoire: research pages bought with Lore and studied over time. ---
+
+# Total of one effect across learned pages, e.g. bonus("herb_capacity").
+func bonus(kind: String) -> float:
+	if _fast: return _d.bonus.get(kind, 0.0)
+	return bonuses().get(kind, 0.0)
+
+func bonuses() -> Dictionary:
+	var out := {}
+	for id in s.research.ranks:
+		var page: Dictionary = pages.get(id, {})
+		if page.is_empty(): continue
+		out[page.effect] = out.get(page.effect, 0.0) + float(page.per_rank) * int(s.research.ranks[id])
+	return out
+
+func add_lore(n: int):
+	if n <= 0: return
+	s.research.lore = int(s.research.lore) + n
+	count("lore", n)
+
+func rank(id: String) -> int:
+	return int(s.research.ranks.get(id, 0))
+
+func page_cost(id: String) -> int:
+	return int(round(float(pages[id].lore) * pow(float(research.cost_growth), rank(id))))
+
+func page_seconds(id: String) -> float:
+	return float(pages[id].seconds) * pow(float(research.time_growth), rank(id)) / (1.0 + bonus("study_speed"))
+
+func desks() -> int:
+	return 2 if bonus("second_desk") > 0 else 1
+
+# A tier opens once enough ranks are learned in the tier below it, capped by
+# how many ranks that tier offers.
+func tier_open(chapter: String, tier: int) -> bool:
+	if tier <= 1: return true
+	var have := 0
+	var offered := 0
+	for page in research.pages:
+		if page.chapter == chapter and int(page.tier) == tier - 1:
+			have += rank(page.id)
+			offered += int(page.ranks)
+	return have >= mini(int(research.tier_needs[tier - 1]), offered)
+
+func studying(id: String) -> bool:
+	for a in s.research.active:
+		if a.id == id: return true
+	return false
+
+# One of: "learned" (every rank), "studying", "ready", "locked".
+func page_state(id: String) -> String:
+	if studying(id): return "studying"
+	if rank(id) >= int(pages[id].ranks): return "learned"
+	return "ready" if tier_open(pages[id].chapter, int(pages[id].tier)) else "locked"
+
+func can_study(id: String) -> bool:
+	return pages.has(id) and page_state(id) == "ready" and s.research.active.size() < desks() and int(s.research.lore) >= page_cost(id)
+
+func start_study(id: String) -> bool:
+	if not can_study(id): return false
+	s.research.lore = int(s.research.lore) - page_cost(id)
+	s.research.active.append({"id":id,"ends":s.elapsed + page_seconds(id)})
+	event("study_%s_%d" % [id, rank(id) + 1])
+	feedback.append("study_start")
+	dirty = true
+	return true
+
+func study_left(a: Dictionary) -> float:
+	return maxf(0.0, float(a.ends) - s.elapsed)
+
+func next_study_end() -> float:
+	var soonest := INF
+	for a in s.research.active: soonest = minf(soonest, float(a.ends))
+	return soonest
+
+# Learn every page whose study has run out; called from tick() on the game
+# clock, so offline catch-up finishes studies exactly as live play does.
+func finish_studies():
+	var still := []
+	var learned := false
+	for a in s.research.active:
+		if s.elapsed >= float(a.ends):
+			s.research.ranks[a.id] = rank(a.id) + 1
+			finished_studies.append(pages[a.id].name)
+			event("learned_%s_%d" % [a.id, rank(a.id)])
+			learned = true
+		else: still.append(a)
+	s.research.active = still
+	if not learned: return
+	feedback.append("study")
+	dirty = true
+	_mult_cache.clear()
+	# A new page can change capacities and timings mid-run; refresh the cache.
+	if _fast: begin_ticks()
+
 func branch_name() -> String:
 	return BRANCHES[int(s.prestige.branches) % BRANCHES.size()]
 
@@ -623,13 +764,16 @@ func open_branch() -> bool:
 	if not can_prestige(): return false
 	var stars := pending_stars()
 	var keep := {}
-	for key in ["stats","achievements","daily","login","muted","flags","elapsed","timestamp","prestige"]: keep[key] = s[key]
+	for key in ["stats","achievements","daily","login","muted","flags","elapsed","timestamp","prestige","research"]: keep[key] = s[key]
 	s = fresh_state()
 	for key in keep: s[key] = keep[key]
 	s.prestige.stars = int(s.prestige.stars) + stars
 	s.prestige.branches = int(s.prestige.branches) + 1
 	s.prestige.run_earned = 0
 	for i in range(talent("team")): s.owned[WORKERS[i]] = true
+	# Carry-over pages: remembered recipes and a third bed from the Seed Library.
+	for r in range(1, mini(int(bonus("recipe_memory")) + 1, cfg.recipes.size())): s.owned[recipe_key(r)] = true
+	if bonus("seed_library") > 0: s.plots.append({"crop":0,"progress":0.0})
 	_mult_cache.clear()
 	update_tutorial()
 	event("open_branch_%d" % int(s.prestige.branches))
@@ -692,7 +836,7 @@ var _fast := false
 var _d := {}
 func begin_ticks():
 	_fast = false
-	_d = {"gardener":owned("gardener"),"brewer":owned("brewer"),"cashier":owned("cashier"),"herb_capacity":herb_capacity(),"queue_capacity":queue_capacity(),"arrival_time":arrival_time(),"service_time":service_time(),"capacity":capacity(),"grow_time":[],"brew_time":[],"price":[]}
+	_d = {"gardener":owned("gardener"),"brewer":owned("brewer"),"cashier":owned("cashier"),"herb_capacity":herb_capacity(),"queue_capacity":queue_capacity(),"arrival_time":arrival_time(),"service_time":service_time(),"capacity":capacity(),"visitor_every":visitor_every(),"bonus":bonuses(),"grow_time":[],"brew_time":[],"price":[]}
 	for c in range(cfg.crops.size()): _d.grow_time.append(grow_time(c))
 	for r in range(cfg.recipes.size()):
 		_d.brew_time.append(brew_time(r))
@@ -720,7 +864,7 @@ func action_due() -> bool:
 	if gardener:
 		for p in s.plots:
 			var c := int(p.crop)
-			if p.progress + 0.00001 >= grow_time(c) and s.herbs[c] + int(cfg.crops[c].yield) <= herb_capacity(): return true
+			if p.progress + 0.00001 >= grow_time(c) and s.herbs[c] + harvest_amount(c) <= herb_capacity(): return true
 	if brewer:
 		if s.ready and stock_count() + int(cfg.recipes[int(s.pot)].produce) <= capacity(): return true
 		if s.pot == -1 and stock_count() < capacity() and can_brew(int(s.recipe)): return true
@@ -747,8 +891,9 @@ func quiet_ticks(limit: int) -> int:
 	var arrival: float = s.arrival
 	var serving: bool = s.serving
 	var service: float = s.service
-	var every: float = cfg.visitors.every
+	var every: float = _d.visitor_every
 	var arrive_at: float = _d.arrival_time
+	var study_end: float = next_study_end() if not s.research.active.is_empty() else INF
 	var serve_at: float = _d.service_time
 	var done := 0
 	while done < limit:
@@ -761,6 +906,7 @@ func quiet_ticks(limit: int) -> int:
 		elif visitor_timer + dt >= every: break
 		if arrival + dt >= arrive_at: break
 		if serving and service + dt + 0.00001 >= serve_at: break
+		if elapsed + dt >= study_end: break
 		elapsed += dt
 		for k in range(progress.size()): progress[k] = minf(progress[k] + dt, grows[k])
 		if brewing: brew_progress += dt
@@ -791,7 +937,7 @@ func simulate(seconds: float):
 	feedback.clear()
 
 func offline_cap() -> float:
-	var extra := float(talent_info("night").step) * talent("night")
+	var extra := float(talent_info("night").step) * talent("night") + bonus("offline_hours")
 	if owned("offline_8"): return 28800.0 + extra
 	if owned("offline_4"): return 14400.0 + extra
 	return float(cfg.offline_cap) + extra
@@ -810,9 +956,11 @@ func begin_offline(now: float) -> Dictionary:
 # Runs up to max_steps ticks; true once the whole absence is simulated.
 func step_offline(job: Dictionary, max_steps: int) -> bool:
 	var n := mini(max_steps, int(job.steps) - int(job.done))
+	away = true
 	begin_ticks()
 	run_ticks(n)
 	end_ticks()
+	away = false
 	job.done = int(job.done) + n
 	return int(job.done) >= int(job.steps)
 
@@ -849,8 +997,17 @@ func valid(v: Variant) -> bool:
 		for n in v[key]:
 			if not (n is float or n is int) or n < 0 or n != floor(n): return false
 	if not v.owned is Dictionary or not v.flags is Dictionary or not v.offline_notice is Dictionary: return false
-	for key in ["daily","login","stats","achievements","prestige"]:
+	for key in ["daily","login","stats","achievements","prestige","research","brewed_kinds"]:
 		if not v[key] is Dictionary: return false
+	var lore = v.research.get("lore")
+	if not (lore is float or lore is int) or lore < 0 or lore != floor(lore): return false
+	if not v.research.get("ranks") is Dictionary or not v.research.get("active") is Array or v.research.active.size() > 2: return false
+	for id in v.research.ranks:
+		var n = v.research.ranks[id]
+		if not pages.has(str(id)) or not (n is float or n is int) or n != floor(n) or n < 0 or n > int(pages[str(id)].ranks): return false
+	for a in v.research.active:
+		if not a is Dictionary or not pages.has(str(a.get("id"))) or not (a.get("ends") is float or a.get("ends") is int) or not is_finite(float(a.ends)) or a.ends < 0: return false
+		if int(v.research.ranks.get(a.id, 0)) >= int(pages[str(a.id)].ranks): return false
 	for key in ["stars","branches","run_earned"]:
 		var n = v.prestige.get(key)
 		if not (n is float or n is int) or n < 0 or n != floor(n): return false
@@ -872,7 +1029,7 @@ func valid(v: Variant) -> bool:
 		if not v[key] is bool: return false
 	for key in ["recipe","pot"]:
 		if not (v[key] is int or v[key] is float) or v[key] != floor(v[key]): return false
-	if int(v.recipe) < 0 or int(v.recipe) >= cfg.recipes.size() or int(v.pot) < -1 or int(v.pot) >= cfg.recipes.size() or v.tutorial > 8 or v.queue > 3 + cfg.milestones.size(): return false
+	if int(v.recipe) < 0 or int(v.recipe) >= cfg.recipes.size() or int(v.pot) < -1 or int(v.pot) >= cfg.recipes.size() or v.tutorial > 8 or v.queue > 5 + cfg.milestones.size(): return false
 	if not v.levels is Dictionary: return false
 	if not v.decor is Dictionary: return false
 	for kind in ["floor","wall"]:
