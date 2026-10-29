@@ -75,7 +75,7 @@ A research tree studied at the lectern. Lore comes from brewing, first brews, sp
 ## Garden scene
 The garden tab is now the painted yard from `art/v2/garden/`, set up in `game/main.tscn` under **Garden**:
 - **Beds:** each bed bought shows a planter at its growth stage: bare soil, sprouts, then leaves (Peppermint, Ember root, Frost fern) or flowers (Moonflower, Starbloom). The next plot shows a padlock and its price; tap it to buy.
-- **Props:** they arrive with the garden's level. Watering can and barrel from the start, wheelbarrow at Lv. 3, bench and bird bath at Lv. 7, beehive and lantern posts at Lv. 10, mushrooms and a flower bush at Lv. 25.
+- **Props:** they arrive with the garden's level. Watering can and barrel from the start, wheelbarrow and soil sack at Lv. 3, bench and bird bath at Lv. 7, beehive at Lv. 10, a stack of pots at Lv. 25. Each stands on open lawn, clear of the painted path, fences, bushes and pots.
 - **Characters:** Pip (or the owner, before Pip is hired) works the first bed, using the existing character sprites.
 - **Branches:** each branch tints the yard and adds gulls, snow, fireflies or stars.
 

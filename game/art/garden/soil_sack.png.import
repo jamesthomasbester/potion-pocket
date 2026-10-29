@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b5oie1mdkyoxh"
-path="res://.godot/imported/lantern.png-a3f5acb9ba75cba6028b8e6ce5afbb54.ctex"
+uid="uid://b1v43xwucnbku"
+path="res://.godot/imported/soil_sack.png-be6d9317b57345107263c968e079c99a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://game/art/garden/lantern.png"
-dest_files=["res://.godot/imported/lantern.png-a3f5acb9ba75cba6028b8e6ce5afbb54.ctex"]
+source_file="res://game/art/garden/soil_sack.png"
+dest_files=["res://.godot/imported/soil_sack.png-be6d9317b57345107263c968e079c99a.ctex"]
 
 [params]
 

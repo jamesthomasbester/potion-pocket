@@ -14,7 +14,7 @@ var stages := {}
 const BEDS = [Vector2(185,560),Vector2(660,640),Vector2(180,745),Vector2(680,830),Vector2(190,930),Vector2(660,1010)]
 const BED_BASE = .25
 # Props by the garden level that brings them.
-const PROP_LEVELS = {"WateringCan":1,"Barrel":1,"Wheelbarrow":3,"Bench":7,"BirdBath":7,"Beehive":10,"Lantern1":10,"Lantern2":10,"Mushrooms":25,"FlowerBush":25}
+const PROP_LEVELS = {"WateringCan":1,"Barrel":1,"Wheelbarrow":3,"SoilSack":3,"Bench":7,"BirdBath":7,"Beehive":10,"PotStack":25}
 # Crops that flower show the flowering planter; the rest show leaves.
 const FLOWERING = [1,4]
 # A tint and an ambient touch for each branch, in economy BRANCHES order.

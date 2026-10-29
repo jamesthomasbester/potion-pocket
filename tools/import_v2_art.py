@@ -37,11 +37,10 @@ GARDEN = {
     'barrel': 'garden/sprites/wooden_barrel/seed683415013_cut',
     'wheelbarrow': 'garden/props/wheelbarrow/seed3547086930_cut',
     'bench': 'garden/props/wooden_bench/seed2840760300_cut',
-    'bird_bath': 'garden/props/bird_bath/seed722459632_cut',
+    'bird_bath': 'garden/props/bird_bath/seed722459633_cut',
     'beehive': 'garden/props/beehive/seed893978163_cut',
-    'lantern': 'garden/props/lantern_post/seed81079409_cut',
-    'mushrooms': 'garden/props/mushrooms/seed2471480645_cut',
-    'flower_bush': 'garden/props/flower_bush/seed1607534554_cut',
+    'soil_sack': 'garden/props/soil_sack/seed1540479656_cut',
+    'pot_stack': 'garden/props/pot_stack/seed3365851230_cut',
     'lock': 'garden/extra/lock_icon/seed1781671086_cut',
 }
 ICONS = {'coin': 'out', 'gear': 'gear-out', 'book': 'book-out', 'shop': 'shop-out', 'garden': 'gardeb-out', 'potion': 'potion-out', 'market': 'market-out'}
