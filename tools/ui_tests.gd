@@ -60,13 +60,31 @@ func run():
 	await app.tap(app.garden_tab)
 	var kept_coins=app.model.s.coins
 	app.model.s.coins=150
-	var plot_point=app.room.view_offset+app.room.bed_center(2)*app.room.view_scale
-	var press=InputEventMouseButton.new()
-	press.button_index=MOUSE_BUTTON_LEFT
-	press.pressed=true
-	press.position=plot_point
-	app.room.gui_input.emit(press)
+	await tap_at(app,app.garden.bed_point(2))
 	check(app.model.s.plots.size()==3 and app.model.s.coins==0,"tapping the locked plot buys it")
+	var g=app.garden
+	var plot=app.model.s.plots[0]
+	plot.progress=0.0
+	g._process(.1)
+	var empty_tex=g.bed(0).texture
+	plot.progress=app.model.grow_time(int(plot.crop))
+	g._process(.1)
+	var grown:String="flowers" if int(plot.crop) in g.FLOWERING else "leafy"
+	check(empty_tex==g.stages["empty"] and g.bed(0).texture==g.stages[grown],"a planter shows its bed's growth, from bare soil to its grown crop")
+	check(g.bed(2).visible and not g.bed(3).visible and g.get_node("Lock").visible,"bought beds show their planter and the next plot shows a padlock")
+	check(not g.props.get_node("Bench").visible and g.props.get_node("WateringCan").visible,"garden props wait for their level")
+	app.model.s.levels.garden=7
+	g._process(.1)
+	check(g.props.get_node("Bench").visible and g.props.get_node("BirdBath").visible,"Lv. 7 brings the bench and bird bath")
+	app.model.s.levels.garden=1
+	app.selected_station="cauldron"
+	await tap_at(app,g.bed(1).to_global(Vector2(0,-40)))
+	check(app.selected_station=="garden","tapping a bed selects the garden station")
+	app.model.s.owned.gardener=true
+	g._process(.1)
+	check(g.gardener!=null and g.gardener.get_parent()==g.props,"Pip works the first bed once hired")
+	app.model.s.owned.erase("gardener")
+	g._process(.1)
 	app.model.s.coins=kept_coins
 	app.settings_box.show()
 	app.storage.path="user://ui-lifecycle-test.json"
@@ -200,7 +218,7 @@ func run():
 	check(not app.purchase_buttons.has("tl_roots"),"talents no longer appear in Improve")
 	app.upgrade_layer.hide()
 	app.model.s.prestige.branches=1
-	check(app.room.theme().extra=="sea","second branch draws the seaside garden theme")
+	check(app.garden.theme().extra=="gulls","second branch gives the garden its seaside look")
 	app.sound.set_muted(true)
 	await create_timer(0.4).timeout
 	app.queue_free()

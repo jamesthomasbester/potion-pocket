@@ -25,7 +25,7 @@ func capture():
 		app.shop._process(0.5)
 		await shot(app,"branch-%d-shop" % b)
 		app.switch_tab("garden")
-		app.room._process(0.5)
+		app.garden._process(0.5)
 		await shot(app,"branch-%d-garden" % b)
 	app.switch_tab("shop")
 	m.s.prestige.stars=6

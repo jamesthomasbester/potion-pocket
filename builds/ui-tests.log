@@ -28,6 +28,12 @@ PASS Recipe Book brew button selects Dreamdrop
 PASS recipes past the next unlock stay hidden
 PASS switching recipe replants beds and recovers from a full old herb bin
 PASS tapping the locked plot buys it
+PASS a planter shows its bed's growth, from bare soil to its grown crop
+PASS bought beds show their planter and the next plot shows a padlock
+PASS garden props wait for their level
+PASS Lv. 7 brings the bench and bird bath
+PASS tapping a bed selects the garden station
+PASS Pip works the first bed once hired
 PASS background notification saved recoverable state
 PASS background save retains inventory and tutorial flags
 PASS reset dialog does not reset before confirmation
@@ -71,5 +77,5 @@ PASS tapping a page in the tree selects it
 PASS the Celestial chapter holds the Moon Star talents
 PASS Celestial pages spend Moon Stars and are learned at once
 PASS talents no longer appear in Improve
-PASS second branch draws the seaside garden theme
-UI RESULT 57 checks / 0 failures
+PASS second branch gives the garden its seaside look
+UI RESULT 63 checks / 0 failures

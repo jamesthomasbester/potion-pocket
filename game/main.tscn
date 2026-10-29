@@ -24,6 +24,20 @@
 [ext_resource type="Texture2D" path="res://game/art/ui/market.png" id="22_market"]
 [ext_resource type="Texture2D" path="res://game/art/shop/cauldron_t1.png" id="23_card"]
 
+[ext_resource type="Script" path="res://game/garden_view.gd" id="30_garden"]
+[ext_resource type="Texture2D" path="res://game/art/garden/yard.png" id="31_yard"]
+[ext_resource type="Texture2D" path="res://game/art/garden/planter_empty.png" id="32_planter"]
+[ext_resource type="Texture2D" path="res://game/art/garden/watering_can.png" id="33_can"]
+[ext_resource type="Texture2D" path="res://game/art/garden/barrel.png" id="34_barrel"]
+[ext_resource type="Texture2D" path="res://game/art/garden/wheelbarrow.png" id="35_wheel"]
+[ext_resource type="Texture2D" path="res://game/art/garden/bench.png" id="36_bench"]
+[ext_resource type="Texture2D" path="res://game/art/garden/bird_bath.png" id="37_bath"]
+[ext_resource type="Texture2D" path="res://game/art/garden/beehive.png" id="38_hive"]
+[ext_resource type="Texture2D" path="res://game/art/garden/lantern.png" id="39_lantern"]
+[ext_resource type="Texture2D" path="res://game/art/garden/mushrooms.png" id="40_mush"]
+[ext_resource type="Texture2D" path="res://game/art/garden/flower_bush.png" id="41_bush"]
+[ext_resource type="Texture2D" path="res://game/art/garden/lock.png" id="42_lock"]
+
 [node name="Game" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -128,6 +142,123 @@ texture = ExtResource("14_counter")
 offset = Vector2(0, -56.7)
 
 [node name="Overlay" type="Node2D" parent="World"]
+z_index = 10
+
+[node name="Garden" type="Node2D" parent="."]
+visible = false
+script = ExtResource("30_garden")
+
+[node name="Yard" type="Sprite2D" parent="Garden"]
+texture = ExtResource("31_yard")
+centered = false
+
+[node name="Props" type="Node2D" parent="Garden"]
+y_sort_enabled = true
+
+[node name="Bed1" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(185, 560)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="Bed2" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(660, 640)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="Bed3" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(180, 745)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="Bed4" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(680, 830)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="Bed5" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(190, 930)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="Bed6" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(660, 1010)
+scale = Vector2(0.57, 0.57)
+texture = ExtResource("32_planter")
+offset = Vector2(0, -92.75)
+
+[node name="WateringCan" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(365, 470)
+scale = Vector2(0.32, 0.32)
+texture = ExtResource("33_can")
+offset = Vector2(0, -121)
+
+[node name="Barrel" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(775, 470)
+scale = Vector2(0.38, 0.38)
+texture = ExtResource("34_barrel")
+offset = Vector2(0, -142)
+
+[node name="Wheelbarrow" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(95, 440)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("35_wheel")
+offset = Vector2(0, -143)
+
+[node name="Bench" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(470, 1110)
+scale = Vector2(0.51, 0.51)
+texture = ExtResource("36_bench")
+offset = Vector2(0, -134)
+
+[node name="BirdBath" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(780, 1120)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("37_bath")
+offset = Vector2(0, -133)
+
+[node name="Beehive" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(60, 1060)
+scale = Vector2(0.37, 0.37)
+texture = ExtResource("38_hive")
+offset = Vector2(0, -148)
+
+[node name="Lantern1" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(455, 470)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("39_lantern")
+offset = Vector2(0, -173)
+
+[node name="Lantern2" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(345, 1120)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("39_lantern")
+offset = Vector2(0, -173)
+
+[node name="Mushrooms" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(300, 1150)
+scale = Vector2(0.36, 0.36)
+texture = ExtResource("40_mush")
+offset = Vector2(0, -131)
+
+[node name="FlowerBush" type="Sprite2D" parent="Garden/Props"]
+position = Vector2(800, 760)
+scale = Vector2(0.48, 0.48)
+texture = ExtResource("41_bush")
+offset = Vector2(0, -137)
+
+[node name="Lock" type="Sprite2D" parent="Garden"]
+z_index = 11
+position = Vector2(180, 705)
+scale = Vector2(0.22, 0.22)
+texture = ExtResource("42_lock")
+offset = Vector2(0, -60)
+
+[node name="Overlay" type="Node2D" parent="Garden"]
 z_index = 10
 
 [node name="HUD" type="CanvasLayer" parent="."]

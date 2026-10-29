@@ -1,35 +1,17 @@
-extends Node2D
+extends "res://game/scene_view.gd"
 # The shop room in main.tscn. Furniture is authored in the scene; this script
 # swaps each piece's art tier as the shop grows, places the team and the
 # customers on the room's floor, and draws badges and effects on Overlay.
 # Coordinates are the scene's design space; main.gd fits this node to the stage.
-const Art = preload("res://game/art_catalog.gd")
-const Actor = preload("res://game/actor.gd")
-
-var model
-var selected := "cauldron"
-var clock := 0.0
-var font := ThemeDB.fallback_font
-var coin_tex: Texture2D = preload("res://game/art/ui/coin.png")
 var tiers := {}
 var textures := {}
-var sheets := {}
-var particles: Array = []
-var floaters: Array = []
 var customers: Array = []
 var departures: Array = []
 var next_customer := 0
-var actor_timers := {}
-var bounce := {}
-var pulse := 0.0
-var effect := ""
-var last_sale_fx := -10.0
 var owner_actor
 var brewer
 var cashier
 var visitor
-@onready var props: Node2D = $Props
-@onready var overlay: Node2D = $Overlay
 
 # Floor corners measured from the room art: the back corner, and the edges
 # towards the right and left corners. floor_at(1,1) is the front corner.
@@ -56,20 +38,12 @@ func floor_at(g: Vector2) -> Vector2:
 	return BACK+FU*g.x+FV*g.y
 
 func _ready():
+	super()
+	selected="cauldron"
+	ui_scale=1.2
 	for family in PROPS.values():
 		for t in range(1,4): textures["%s_t%d" % [family,t]]=load("res://game/art/shop/%s_t%d.png" % [family,t])
-	for name in ["owner","brewer","cashier","customer0","customer1","departing"]:
-		sheets[name]=load("res://game/art/animations/"+name+".png")
-	overlay.draw.connect(draw_overlay)
 	owner_actor=add_actor("owner",88)
-
-func add_actor(sheet:String,w:float):
-	var a=Actor.new()
-	a.sheet=sheets[sheet]
-	a.w=w
-	a.phase=randf()*3
-	props.add_child(a)
-	return a
 
 func prop(name:String) -> Sprite2D:
 	return props.get_node(name) if props.has_node(name) else get_node("Decals/"+name)
@@ -99,35 +73,19 @@ func refresh_art():
 
 func _process(dt):
 	if not model: return
-	clock+=dt
-	pulse=maxf(0,pulse-dt)
+	step_effects(dt)
 	refresh_art()
-	for key in actor_timers.keys(): actor_timers[key]=maxf(0,float(actor_timers[key])-dt)
-	for k in bounce.keys(): bounce[k]=maxf(0,bounce[k]-dt*2.6)
 	for node in ["Cauldron","PotionShelf","Counter"]:
 		var t:float=bounce.get(STATIONS[node],0.0)
 		var squash=sin(t*PI*3.0)*t*.12
 		prop(node).scale=Vector2(1+squash,1-squash)*base_scale(node)
 	sync_team()
 	sync_customers(dt)
-	for q in particles:
-		q.p+=q.v*dt
-		q.v.y+=q.g*dt
-		q.v*=1.0-q.drag*dt
-		q.life-=dt
-	particles=particles.filter(func(q):return q.life>0)
-	for f in floaters: f.t+=dt
-	floaters=floaters.filter(func(f):return f.t<1.3)
-	overlay.queue_redraw()
 
 var _scales := {}
 func base_scale(node:String) -> Vector2:
 	if not _scales.has(node): _scales[node]=prop(node).scale
 	return _scales[node]
-
-func actor_action(name:String,working:=false) -> String:
-	if float(actor_timers.get(name,0.0))>0: return "pickup"
-	return "work" if working else "idle"
 
 # Momo and Sol appear once hired; the owner brews by hand until then and
 # otherwise strolls around the rug.
@@ -169,10 +127,6 @@ func sync_team():
 		visitor.queue_free()
 		visitor=null
 	if visitor: visitor.action="work" if model.visitor_potion()>=0 else "idle"
-
-func direction(delta:Vector2) -> int:
-	if delta.y>=0: return 0 if delta.x<0 else 1
-	return 2 if delta.x<0 else 3
 
 # Customers walk in through the door to their queue spot; beyond the visible
 # spots the rest wait outside and show as a count by the door.
@@ -238,11 +192,6 @@ func station_at(global_point:Vector2) -> String:
 			return "book" if node=="Lectern" else STATIONS[node]
 	return ""
 
-func spray(at:Vector2,count:int,kind:String,color:Color,speed:=160.0,up:=-120.0,g:=320.0,life:=0.9):
-	for i in range(count):
-		var dir=Vector2.from_angle(randf_range(-PI,0))*randf_range(.35,1)*speed+Vector2(0,up)
-		particles.append({"p":at+Vector2(randf_range(-14,14),randf_range(-6,6)),"v":dir,"g":g,"drag":1.2,"life":life*randf_range(.7,1.1),"max":life,"kind":kind,"color":color,"r":randf_range(3,6)})
-
 # Visual response to economy feedback.
 func burst(kind:String):
 	effect=kind
@@ -260,17 +209,8 @@ func burst(kind:String):
 		"sale","dream_sale":
 			actor_timers["cashier" if model.owned("cashier") else "owner"]=.5
 			var at=station_pos("counter")-Vector2(10,110)
-			var amount=model.price(1 if kind=="dream_sale" else 0)
-			# Fast checkouts merge into one rising total instead of a pile of labels.
-			if clock-last_sale_fx<.35 and not floaters.is_empty() and floaters.back().has("amount"):
-				var f=floaters.back()
-				f.amount+=amount
-				f.text="+"+model.short(f.amount)
-				f.t=minf(f.t,.2)
-			else:
-				spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
-				floaters.append({"p":at-Vector2(20,30),"t":0.0,"amount":amount,"text":"+"+model.short(amount),"dream":kind=="dream_sale","coin":true})
-			last_sale_fx=clock
+			if clock-last_sale_fx>=.35: spray(at,7,"coin",Color.WHITE,170,-230,520,1.0)
+			sale_floater(at,kind)
 			bounce["counter"]=.7
 		"request","vip":
 			var at=floor_at(VISITOR_SPOT)-Vector2(0,110)
@@ -294,49 +234,6 @@ func burst(kind:String):
 		"upgrade":
 			spray(Vector2(270,450),26,"star",Color("ffd765"),300,-120,140,1.2)
 			spray(Vector2(270,450),14,"dot",Color("b58af1"),260,-160,260,1.0)
-
-# --- Overlay drawing: everything here sits above the room and its people. ---
-
-func text(o:CanvasItem,p:Vector2,s:String,n:=16,c:=Color("2b1a3d")):
-	o.draw_string(font,p,s,HORIZONTAL_ALIGNMENT_LEFT,-1,n,c)
-
-func badge(o:CanvasItem,p:Vector2,id:String):
-	var on:=id==selected
-	var label:="Lv. %d" % model.level(id)
-	var w:=font.get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,15).x+20
-	var st:=StyleBoxFlat.new()
-	st.bg_color=Color("7d52c9") if on else Color("fff3df")
-	st.border_color=Color("4a2a7a") if on else Color("6b3f24")
-	st.set_border_width_all(2)
-	st.set_corner_radius_all(12)
-	var r:=Rect2(p-Vector2(w/2,12),Vector2(w,25))
-	o.draw_style_box(st,r)
-	text(o,r.position+Vector2(10,18),label,15,Color("fff3df") if on else Color("2b1a3d"))
-
-func pill(o:CanvasItem,p:Vector2,title:String,progress:float,w:=110.0):
-	var st:=StyleBoxFlat.new()
-	st.bg_color=Color("fff3df")
-	st.border_color=Color("6b3f24")
-	st.set_border_width_all(2)
-	st.set_corner_radius_all(14)
-	o.draw_style_box(st,Rect2(p,Vector2(w,44)))
-	text(o,p+Vector2(11,19),title,14)
-	var bar:=StyleBoxFlat.new()
-	bar.bg_color=Color("e6d9f2")
-	bar.set_corner_radius_all(6)
-	o.draw_style_box(bar,Rect2(p+Vector2(8,26),Vector2(w-16,10)))
-	bar=bar.duplicate()
-	bar.bg_color=Color("8a5cd6")
-	o.draw_style_box(bar,Rect2(p+Vector2(8,26),Vector2(maxf(3,(w-16)*clampf(progress,0,1)),10)))
-
-func twinkle(o:CanvasItem,p:Vector2,r:float,c:Color):
-	o.draw_colored_polygon(PackedVector2Array([p+Vector2(0,-r),p+Vector2(r*.28,-r*.28),p+Vector2(r,0),p+Vector2(r*.28,r*.28),p+Vector2(0,r),p+Vector2(-r*.28,r*.28),p+Vector2(-r,0),p+Vector2(-r*.28,-r*.28)]),c)
-
-func glints(o:CanvasItem,center:Vector2,spread:Vector2,seed:float):
-	for i in range(3):
-		var t=fmod(clock*.8+i*.37+seed,1.0)
-		var a=sin(t*PI)
-		twinkle(o,center+Vector2(sin(i*2.1+seed)*spread.x,cos(i*1.7+seed)*spread.y),3+a*5,Color(1,.96,.7,a))
 
 func draw_overlay():
 	if not model: return
@@ -385,23 +282,7 @@ func draw_overlay():
 		o.draw_style_box(st,Rect2(p-Vector2(0,13),Vector2(44,26)))
 		text(o,p+Vector2(8,6),"+%d" % waiting,16)
 	if visitor: draw_visitor_bubble(o)
-	for q in particles:
-		var a=clampf(q.life/q.max*1.6,0,1)
-		match q.kind:
-			"coin": o.draw_texture_rect(coin_tex,Rect2(q.p-Vector2(10,10),Vector2(20,20)),false,Color(1,1,1,a))
-			"star": twinkle(o,q.p,q.r+2,Color(q.color,a))
-			_: o.draw_circle(q.p,q.r*(.5+a*.5),Color(q.color,a))
-	for f in floaters:
-		var e=1-pow(1-minf(f.t/1.3,1),3)
-		var p=f.p-Vector2(0,e*70)
-		var a=clampf((1.3-f.t)*2.5,0,1)
-		var s=26+int(10*maxf(0,.25-f.t)/.25)
-		var c=Color("7b3fd1") if f.dream else Color("2f7d4f")
-		if not f.get("coin",true): s+=10
-		o.draw_string_outline(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,6,Color(1,1,1,a))
-		o.draw_string(font,p,f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s,Color(c,a))
-		var w=font.get_string_size(f.text,HORIZONTAL_ALIGNMENT_LEFT,-1,s).x
-		if f.get("coin",true): o.draw_texture_rect(coin_tex,Rect2(p+Vector2(w+4,-s*.85),Vector2(s*.9,s*.9)),false,Color(1,1,1,a))
+	draw_effects(o)
 
 # Speech bubble: wanted potion (or any, for a VIP), pay multiplier, countdown ring.
 func draw_visitor_bubble(o:CanvasItem):

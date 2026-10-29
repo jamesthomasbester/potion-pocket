@@ -35,13 +35,13 @@ func capture():
 	await process_frame
 	await app.screenshot("animation-shop-pickup")
 	app.switch_tab("garden")
-	app.room.actor_timers["gardener"]=0
-	app.room.clock=0
-	app.room.queue_redraw()
+	app.garden.actor_timers["gardener"]=0
+	app.garden.clock=0
+	app.garden.queue_redraw()
 	await process_frame
 	await app.screenshot("animation-garden-work")
-	app.room.actor_timers["gardener"]=.7
-	app.room.queue_redraw()
+	app.garden.actor_timers["gardener"]=.7
+	app.garden.queue_redraw()
 	await process_frame
 	await app.screenshot("animation-garden-pickup")
 	print("ANIMATION PREVIEW four action scenes captured")

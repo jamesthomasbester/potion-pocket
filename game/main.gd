@@ -1,13 +1,12 @@
 extends Control
 const Economy = preload("res://game/economy.gd")
 const Storage = preload("res://game/storage.gd")
-const Room = preload("res://game/room.gd")
 const Sound = preload("res://game/sound.gd")
 const Art = preload("res://game/art_catalog.gd")
 const ResearchTree = preload("res://game/research_tree.gd")
 var model = Economy.new()
 var storage = Storage.new()
-var room
+var garden
 var sound
 var tab := "shop"
 var accumulator := 0.0
@@ -100,6 +99,8 @@ const DISABLED = Color("e2dbd2")
 const STATION_ICONS = {"cauldron":"cauldron","counter":"counter","shelf":"potion_shelf"}
 # The part of the shop scene the stage frames: the room from roof to doormat.
 const SHOP_FRAME = Rect2(-6,-4,552,700)
+# The part of the garden yard the stage frames: the cottage door down to the last beds.
+const GARDEN_FRAME = Rect2(20,330,792,790)
 # Purchase cards reuse the scene sprites so the menu reads like the shop.
 const TALENT_ICONS = {"roots":"mint_t3","bubbles":"cauldron_t3","street":"customer0","patrons":"customer1","night":"owner","team":"gardener"}
 const PURCHASE_ICONS = {"gardener":"gardener","brewer":"brewer","cashier":"cashier","recipe":"dream","grow":"bed","brew":"cauldron_t2","service":"counter_t2","capacity":"potion_shelf_t2","renovation":"rug_t3","offline_4":"owner","offline_8":"dream_t3"}
@@ -318,21 +319,8 @@ func build_ui():
 	stage=%Stage
 	stage.gui_input.connect(stage_input)
 	stage.resized.connect(fit_world)
-	room=Room.new()
-	room.model=model
-	room.clip_contents=true
-	room.mouse_filter=Control.MOUSE_FILTER_STOP
-	room.gui_input.connect(func(event):
-		if event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed:
-			var id:String=room.station_at(event.position)
-			if id=="plot": buy_plot()
-			elif id!="" and id!=selected_station:
-				selected_station=id
-				sound.play("tap")
-				refresh())
-	ui.add_child(room)
-	ui.move_child(room,0)
-	room.hide()
+	garden=$Garden
+	garden.model=model
 	# Settings drop down from the gear.
 	var settings_panel:=PanelContainer.new()
 	settings_panel.add_theme_stylebox_override("panel",framed(CREAM,20,3))
@@ -619,7 +607,7 @@ func show_daily():
 	for i in range(model.s.daily.get("quests",[]).size()):
 		var q:Dictionary=model.s.daily.quests[i]
 		var icon_name:String=QUEST_ICONS[q.kind]
-		var icon:Texture2D=coin_tex if icon_name=="coin" else room.textures.get(icon_name+"_t1",room.textures.get(icon_name))
+		var icon:Texture2D=coin_tex if icon_name=="coin" else garden.textures.get(icon_name+"_t1",garden.textures.get(icon_name))
 		shop_card(icon,"","",func():
 			model.claim_quest(i)
 			after_action(),"quest_%d" % i)
@@ -681,7 +669,7 @@ func start_catch_up(now: float):
 	catch_bar.value=0
 	catch_layer.show()
 	# The scene stays drawn but stops animating, leaving the frame for catch-up.
-	room.set_process(false)
+	garden.set_process(false)
 	shop.set_process(false)
 
 func step_catch_up():
@@ -694,7 +682,7 @@ func step_catch_up():
 		var job:=catch_job
 		catch_job={}
 		catch_layer.hide()
-		room.set_process(true)
+		garden.set_process(true)
 		shop.set_process(true)
 		finish_catch_up(job)
 
@@ -745,22 +733,23 @@ func toggle_mute():
 	refresh()
 
 func switch_tab(value: String):
-	var view:CanvasItem=room if value=="garden" else shop
+	var view:CanvasItem=garden if value=="garden" else shop
 	if value!=tab:
 		sound.play("tap")
-		room.particles.clear()
-		room.floaters.clear()
+		garden.particles.clear()
+		garden.floaters.clear()
 		shop.particles.clear()
 		shop.floaters.clear()
 		view.modulate=Color(1,1,1,0.35)
 		view.create_tween().tween_property(view,"modulate",Color.WHITE,0.22)
 	tab=value
-	room.visible=tab=="garden"
+	garden.visible=tab=="garden"
 	shop.visible=tab=="shop"
-	# On the garden tab the stage lets taps through to the garden view.
-	stage.mouse_filter=Control.MOUSE_FILTER_IGNORE if tab=="garden" else Control.MOUSE_FILTER_STOP
+	# Night sky behind the shop; lawn green around the garden yard.
+	$Sky.visible=tab=="shop"
+	$Backdrop.color=Color("8cc35a") if tab=="garden" else Color(0.29,0.18,0.5)
 	selected_station="garden" if tab=="garden" else "cauldron"
-	room.queue_redraw()
+	garden.queue_redraw()
 	refresh()
 
 # Fit the shop room into the stage (the space between the top bar and the
@@ -771,16 +760,19 @@ func fit_world():
 	var s:=minf(rect.size.x/SHOP_FRAME.size.x,rect.size.y/SHOP_FRAME.size.y)
 	shop.scale=Vector2.ONE*s
 	shop.position=rect.position+(rect.size-SHOP_FRAME.size*s)/2-SHOP_FRAME.position*s
-	room.position=rect.position
-	room.size=rect.size
+	var g:=minf(rect.size.x/GARDEN_FRAME.size.x,rect.size.y/GARDEN_FRAME.size.y)
+	garden.scale=Vector2.ONE*g
+	garden.position=rect.position+(rect.size-GARDEN_FRAME.size*g)/2-GARDEN_FRAME.position*g
 
 func stage_input(event: InputEvent):
 	if not (event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed): return
 	if settings_box.visible:
 		settings_box.hide()
 		return
-	var id:String=shop.station_at(stage.get_global_transform()*event.position)
-	if id=="visitor": serve_visitor()
+	var point:Vector2=stage.get_global_transform()*event.position
+	var id:String=garden.station_at(point) if tab=="garden" else shop.station_at(point)
+	if id=="plot": buy_plot()
+	elif id=="visitor": serve_visitor()
 	elif id=="book": show_research()
 	elif id!="" and id!=selected_station:
 		selected_station=id
@@ -807,7 +799,7 @@ func buy_plot():
 	after_action()
 
 func potion_icon(r: int) -> Texture2D:
-	return room.textures[Art.name_for(Art.POTIONS[r],model.level("cauldron"))]
+	return garden.textures[Art.name_for(Art.POTIONS[r],model.level("cauldron"))]
 
 func show_book():
 	clear_cards()
@@ -915,8 +907,8 @@ func show_research():
 # Page and talent icons reuse the game's own sprites.
 func research_icons() -> Dictionary:
 	var icons:={}
-	for page in model.research.pages: icons[page.id]=coin_tex if page.icon=="coin" else shop.textures.get(page.icon,room.textures.get(page.icon))
-	for t in model.cfg.talents: icons[t.id]=shop.textures.get(TALENT_ICONS[t.id],room.textures.get(TALENT_ICONS[t.id]))
+	for page in model.research.pages: icons[page.id]=coin_tex if page.icon=="coin" else shop.textures.get(page.icon,garden.textures.get(page.icon))
+	for t in model.cfg.talents: icons[t.id]=shop.textures.get(TALENT_ICONS[t.id],garden.textures.get(TALENT_ICONS[t.id]))
 	return icons
 
 func can_study_any() -> bool:
@@ -1069,7 +1061,7 @@ func buy_talent(id: String):
 
 func level_up(id: String):
 	if storage.locked: return
-	room.selected=id
+	garden.selected=id
 	if model.level_up(id):
 		pop(upgrade_button,1.0,0.3,1.1)
 		if purchase_cards.has("lv_"+id): pop(purchase_cards["lv_"+id],1.0,0.3,1.05)
@@ -1110,9 +1102,9 @@ func station_name(id: String) -> String:
 	return id
 
 func station_icon(id: String) -> Texture2D:
-	if id in model.WORKERS: return room.textures[id]
+	if id in model.WORKERS: return garden.textures[id]
 	if id=="garden":
-		return room.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
+		return garden.textures[Art.name_for(Art.CROPS[int(model.s.plots[0].crop)],model.level("garden"))]
 	return shop.textures[Art.name_for(STATION_ICONS[id],model.level(id))]
 
 func shop_card(icon: Texture2D, title: String, benefit: String, action: Callable, key: String):
@@ -1164,14 +1156,14 @@ func show_upgrades(team: bool):
 	overlay_sub.text="Earn coins by selling potions, then grow your little business."
 	if not team:
 		section("NEW BRANCH • Moon Stars raise every potion price for good; spend them in the Grimoire's Celestial chapter")
-		shop_card(room.textures["dream_t3"],"","",func(): ask_branch(),"branch")
+		shop_card(garden.textures["dream_t3"],"","",func(): ask_branch(),"branch")
 		section("STATIONS • new furniture at levels 3 and 7; levels 10, 25, 50, 75 and 100 double output")
 		for id in model.STATIONS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
 		section("ONE-TIME UPGRADES")
 	for p in model.cfg.purchases:
 		if (p.id in ["gardener","brewer","cashier"]) != team: continue
 		var icon_name:String=PURCHASE_ICONS.get(p.id,"plant")
-		shop_card(shop.textures.get(icon_name,room.textures.get(icon_name)),p.name,p.benefit,buy.bind(p.id),p.id)
+		shop_card(shop.textures.get(icon_name,garden.textures.get(icon_name)),p.name,p.benefit,buy.bind(p.id),p.id)
 	if team:
 		section("TRAIN YOUR TEAM • levels 10, 25, 50, 75 and 100 double each helper")
 		for id in model.WORKERS: shop_card(station_icon(id),"","",level_up.bind(id),"lv_"+id)
@@ -1201,7 +1193,7 @@ func select_decor(kind: String,variant: int):
 	if storage.locked: return
 	if model.select_decor(kind,variant):
 		sound.play("upgrade")
-		room.queue_redraw()
+		garden.queue_redraw()
 		persist()
 		refresh()
 
@@ -1244,7 +1236,7 @@ func refresh():
 	var s: Dictionary=model.s
 	var id:=selected_station
 	var maxed:bool=model.level(id)>=int(model.cfg.max_level)
-	room.selected=id
+	garden.selected=id
 	shop.selected=id
 	card_title.text="%s · Lv. %d" % [station_name(id),model.level(id)]
 	card_icon.texture=station_icon(id)
@@ -1386,7 +1378,7 @@ func refresh():
 
 func flush_feedback():
 	for kind in model.feedback:
-		if tab=="garden": room.burst(kind)
+		if tab=="garden": garden.burst(kind)
 		else: shop.burst(kind)
 		sound.play("upgrade" if kind in ["level","milestone","study"] else "dream_sale" if kind in ["vip","request"] else "tap" if kind in ["visitor","study_start"] else kind)
 		if OS.get_name()=="Android" and kind in ["sale","dream_sale","upgrade","milestone","vip","request"]: Input.vibrate_handheld(40 if kind in ["milestone","vip"] else 18,0.3)
@@ -1460,7 +1452,7 @@ func _notification(what):
 			var job:=catch_job
 			catch_job={}
 			catch_layer.hide()
-			room.set_process(true)
+			garden.set_process(true)
 			shop.set_process(true)
 			if not harness: storage.save(model,model.partial_timestamp(job))
 		elif is_instance_valid(status): persist()
@@ -1471,18 +1463,17 @@ func _notification(what):
 
 func tap(b: Button):
 	if b.disabled or not b.is_visible_in_tree(): return
-	var e:=InputEventScreenTouch.new()
-	e.index=0
-	e.position=b.get_global_rect().get_center()
-	e.pressed=true
-	Input.parse_input_event(e)
-	await get_tree().process_frame
-	e=InputEventScreenTouch.new()
-	e.index=0
-	e.position=b.get_global_rect().get_center()
-	e.pressed=false
-	Input.parse_input_event(e)
-	await get_tree().process_frame
+	await tap_point(b.get_global_rect().get_center())
+
+# A real touch at a screen point, as a finger would make.
+func tap_point(point: Vector2):
+	for pressed in [true,false]:
+		var e:=InputEventScreenTouch.new()
+		e.index=0
+		e.position=point
+		e.pressed=pressed
+		Input.parse_input_event(e)
+		await get_tree().process_frame
 
 func screenshot(name: String):
 	# Let tab fades finish so evidence shows the settled scene.
@@ -1501,7 +1492,7 @@ func run_capture():
 	var recorded_renovation:=false
 	while model.s.elapsed < 300:
 		model.simulate(1.0)
-		room._process(1.0)
+		garden._process(1.0)
 		refresh()
 		if not model.owned("gardener"):
 			await tap(garden_tab)
@@ -1548,12 +1539,7 @@ func run_capture():
 			recorded_renovation=true
 		if model.owned("service") and model.s.plots.size()<3 and model.s.coins>=model.plot_cost():
 			await tap(garden_tab)
-			var point=room.view_offset+room.bed_center(model.s.plots.size())*room.view_scale
-			var press=InputEventMouseButton.new()
-			press.button_index=MOUSE_BUTTON_LEFT
-			press.pressed=true
-			press.position=point
-			room.gui_input.emit(press)
+			await tap_point(garden.bed_point(model.s.plots.size()))
 			print("PLAY purchase plot at ",model.s.elapsed)
 			await tap(shop_tab)
 	print("PLAY FINAL ",JSON.stringify(model.s))

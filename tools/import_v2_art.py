@@ -25,6 +25,25 @@ TIERS = {
     'plant': ['potted_plant/t1_seed1245336311_cut', 'potted_plant/t2_cut', 'potted_plant/t3_seed3237999719_cut'],
 }
 FULL = {'room': 'seed1604686692_cut', 'sky': 'night_sky'}
+# The garden: one painted yard, the planter in its growth stages (all share
+# one box), and the props that appear as the garden levels up.
+GARDEN_FULL = {'yard': 'garden/base/seed277059929'}
+GARDEN = {
+    'planter_empty': 'garden/sprites/planter_empty/seed2827450842_cut',
+    'planter_sprouts': 'garden/stages/sprouts_d0.7/seed4183138167_cut',
+    'planter_leafy': 'garden/stages/mint_d0.7/seed4009129118_cut',
+    'planter_flowers': 'garden/stages/flowers_d0.7/seed3846977121_cut',
+    'watering_can': 'garden/sprites/watering_can/seed2497710954_cut',
+    'barrel': 'garden/sprites/wooden_barrel/seed683415013_cut',
+    'wheelbarrow': 'garden/props/wheelbarrow/seed3547086930_cut',
+    'bench': 'garden/props/wooden_bench/seed2840760300_cut',
+    'bird_bath': 'garden/props/bird_bath/seed722459632_cut',
+    'beehive': 'garden/props/beehive/seed893978163_cut',
+    'lantern': 'garden/props/lantern_post/seed81079409_cut',
+    'mushrooms': 'garden/props/mushrooms/seed2471480645_cut',
+    'flower_bush': 'garden/props/flower_bush/seed1607534554_cut',
+    'lock': 'garden/extra/lock_icon/seed1781671086_cut',
+}
 ICONS = {'coin': 'out', 'gear': 'gear-out', 'book': 'book-out', 'shop': 'shop-out', 'garden': 'gardeb-out', 'potion': 'potion-out', 'market': 'market-out'}
 
 shop.mkdir(parents=True, exist_ok=True)
@@ -38,4 +57,11 @@ for name, pick in FULL.items():
     Image.open(src / (pick + '.png')).convert('RGBA').save(shop / f'{name}.png', optimize=True)
 for name, pick in ICONS.items():
     Image.open(src / (pick + '.png')).convert('RGBA').save(ui / f'{name}.png', optimize=True)
+garden = root / 'game/art/garden'
+garden.mkdir(parents=True, exist_ok=True)
+for name, pick in GARDEN_FULL.items():
+    Image.open(src / (pick + '.png')).convert('RGBA').save(garden / f'{name}.png', optimize=True)
+for name, pick in GARDEN.items():
+    im = Image.open(src / (pick + '.png')).convert('RGBA')
+    im.resize((im.width // 2, im.height // 2), Image.LANCZOS).save(garden / f'{name}.png', optimize=True)
 print('Copied', sum(len(p) for p in TIERS.values()) + len(FULL), 'shop images and', len(ICONS), 'icons')

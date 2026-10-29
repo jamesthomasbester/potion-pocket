@@ -67,10 +67,19 @@ Pip, Momo and Sol level 1–100 in **Team** once hired: Pip speeds growth, Momo 
 
 Furniture tiers: stations follow their level. The lectern, books and bookcase follow recipes unlocked, and the workbench follows Momo's level. The rug, doormat and plant follow the Décor choice. Tap the cauldron, potion shelf or counter to select it, the lectern to open the Recipe Book, and a special visitor to serve them. `game/actor.gd` draws a character from the existing pose sheets.
 
-The new art's sources are in `art/v2/`. `art/` is excluded from export, so `python3 tools/import_v2_art.py` copies the chosen cut-outs into `game/art/shop/` and `game/art/ui/`. It halves the furniture size, and the picks are listed at the top of the script. The garden tab still uses the drawn garden in `game/room.gd`.
+The new art's sources are in `art/v2/`. `art/` is excluded from export, so `python3 tools/import_v2_art.py` copies the chosen cut-outs into `game/art/shop/` and `game/art/ui/`. It halves the furniture size, and the picks are listed at the top of the script.
 
 ## The Grimoire (0.8.0)
 A research tree studied at the lectern. Lore comes from brewing, first brews, special visitors, milestones and daily goals. Each page takes real game time, and every learned page lasts through every branch. There are four chapters of five pages (Herbology, Brewing, Commerce, Arcana), plus the Celestial chapter, which now holds the Moon Star talents. Open it from **Grimoire** in the bottom bar or by tapping the lectern. While a study runs, the lectern glows and the owner reads beside it. `game/research_tree.gd` draws a chapter. Pages, costs and timings are in `data/research.json`. Details: `docs/ECONOMY.md`.
+
+## Garden scene
+The garden tab is now the painted yard from `art/v2/garden/`, set up in `game/main.tscn` under **Garden**:
+- **Beds:** each bed bought shows a planter at its growth stage: bare soil, sprouts, then leaves (Peppermint, Ember root, Frost fern) or flowers (Moonflower, Starbloom). The next plot shows a padlock and its price; tap it to buy.
+- **Props:** they arrive with the garden's level. Watering can and barrel from the start, wheelbarrow at Lv. 3, bench and bird bath at Lv. 7, beehive and lantern posts at Lv. 10, mushrooms and a flower bush at Lv. 25.
+- **Characters:** Pip (or the owner, before Pip is hired) works the first bed, using the existing character sprites.
+- **Branches:** each branch tints the yard and adds gulls, snow, fireflies or stars.
+
+`game/garden_view.gd` drives it. `game/scene_view.gd` holds what the shop and garden share: characters, effects, badges and bars. `tools/import_v2_art.py` also copies the garden picks into `game/art/garden/`.
 
 ## Deliverables
 - `builds/little-lux-debug.apk`: verified debug-signed installable Android package.
