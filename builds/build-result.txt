@@ -1,4 +1,8 @@
--v4/icon_foreground.webp
+w.xml
+ADDING: res/mipmap-anydpi-v26/icon.xml
+ADDING: res/mipmap-hdpi-v4/icon.webp
+ADDING: res/mipmap-hdpi-v4/icon_background.webp
+ADDING: res/mipmap-hdpi-v4/icon_foreground.webp
 ADDING: res/mipmap-hdpi-v4/icon_monochrome.webp
 ADDING: res/mipmap-mdpi-v4/icon.webp
 ADDING: res/mipmap-mdpi-v4/icon_background.webp
@@ -34,11 +38,12 @@ ADDING: kotlin/reflect/reflect.kotlin_builtins
 [   0% ] [90m[1mexport[22m | Adding files...[39m[0m
 [  97% ] [90m[1mexport[22m | Aligning APK...[39m[0m
 [  98% ] [90m[1mexport[22m | Signing debug APK...[39m[0m
+Could not find version of build tools that matches Target SDK, using 35.0.0
 Signing binary using: 
-/media/james/dev-drive/strata-dig-deeper/.tools/android-sdk/build-tools/36.1.0/apksigner sign --verbose --ks <REDACTED> --ks-pass pass:<REDACTED> --ks-key-alias <REDACTED> /media/james/dev-drive/potion-pocket/builds/little-lux-debug.apk
+/root/Android/Sdk/build-tools/35.0.0/apksigner sign --verbose --ks <REDACTED> --ks-pass pass:<REDACTED> --ks-key-alias <REDACTED> /home/user/potion-pocket/builds/little-lux-debug.apk
 Signed
 
 [  99% ] [90m[1mexport[22m | Verifying APK...[39m[0m
 [92m[ DONE ][39m [1mexport[22m
 [0m
-
+Android Debug Bridge version 1.0.41
