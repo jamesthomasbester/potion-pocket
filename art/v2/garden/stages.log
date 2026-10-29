@@ -1,0 +1,30 @@
+== sprouts denoise=0.55
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.55/seed543591411.png  (78.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.55/seed543591412.png  (117.4s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.55/seed543591411_cut.png  912x745
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.55/seed543591412_cut.png  912x743
+== sprouts denoise=0.7
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.7/seed4183138167.png  (117.5s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.7/seed4183138168.png  (81.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.7/seed4183138167_cut.png  913x745
+/var/home/jbester/ai/pixelsprite/out/garden/stages/sprouts_d0.7/seed4183138168_cut.png  910x745
+== mint denoise=0.55
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.55/seed3714667574.png  (81.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.55/seed3714667575.png  (82.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.55/seed3714667574_cut.png  912x744
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.55/seed3714667575_cut.png  912x744
+== mint denoise=0.7
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.7/seed4009129118.png  (81.3s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.7/seed4009129119.png  (82.3s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.7/seed4009129118_cut.png  913x744
+/var/home/jbester/ai/pixelsprite/out/garden/stages/mint_d0.7/seed4009129119_cut.png  912x746
+== flowers denoise=0.55
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.55/seed1219710819.png  (81.3s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.55/seed1219710820.png  (83.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.55/seed1219710819_cut.png  912x742
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.55/seed1219710820_cut.png  912x743
+== flowers denoise=0.7
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.7/seed3846977121.png  (77.4s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.7/seed3846977122.png  (81.1s)
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.7/seed3846977121_cut.png  913x769
+/var/home/jbester/ai/pixelsprite/out/garden/stages/flowers_d0.7/seed3846977122_cut.png  912x743
